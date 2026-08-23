@@ -6,8 +6,8 @@ function parseArgs(argv) {
     url: null,
     source: 'kupujemprodajem',
     maxPages: Infinity,
-    delayMs: 3000,
-    fetchDetails: true,
+    delayMs: 8000,
+    retries: 3,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -16,7 +16,7 @@ function parseArgs(argv) {
     else if (arg === '--source' && argv[i + 1]) args.source = argv[++i];
     else if (arg === '--max-pages' && argv[i + 1]) args.maxPages = parseInt(argv[++i], 10);
     else if (arg === '--delay' && argv[i + 1]) args.delayMs = parseInt(argv[++i], 10);
-    else if (arg === '--no-details') args.fetchDetails = false;
+    else if (arg === '--retries' && argv[i + 1]) args.retries = parseInt(argv[++i], 10);
   }
 
   return args;

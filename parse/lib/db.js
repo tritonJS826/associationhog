@@ -27,6 +27,7 @@ db.exec(`
     raw                       TEXT,
     closed_by                 TEXT NOT NULL DEFAULT 'not_closed_yet',
     date_closed               TEXT,
+    details_fetched           INTEGER NOT NULL DEFAULT 0,
     first_seen                TEXT NOT NULL,
     last_seen                 TEXT NOT NULL
   );
@@ -41,6 +42,9 @@ if (!columns.includes('closed_by')) {
 }
 if (!columns.includes('date_closed')) {
   db.exec('ALTER TABLE posts ADD COLUMN date_closed TEXT');
+}
+if (!columns.includes('details_fetched')) {
+  db.exec('ALTER TABLE posts ADD COLUMN details_fetched INTEGER NOT NULL DEFAULT 0');
 }
 
 // Migrate from the old boolean columns (is_closed_by_ad_maker / date_closed_by_ad_maker).
@@ -124,11 +128,41 @@ export function markClosed(id, closedBy, dateClosed = null) {
   MARK_CLOSED.run(closedBy ?? 'not_closed_yet', dateClosed ?? null, now, id);
 }
 
+const ENRICH_POST = db.prepare(`
+  UPDATE posts
+  SET title = COALESCE(?, title),
+      description = COALESCE(?, description),
+      price = COALESCE(?, price),
+      images = COALESCE(?, images),
+      details_fetched = 1,
+      last_seen = ?
+  WHERE id = ?
+`);
+
+export function enrichPost(id, { title, description, price, images } = {}) {
+  const now = new Date().toISOString();
+  ENRICH_POST.run(
+    title ?? null,
+    description ?? null,
+    price ?? null,
+    images ?? null,
+    now,
+    id
+  );
+}
+
 export function listOpenPosts(source = null) {
   if (source) {
     return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND source = ?").all(source);
   }
   return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet'").all();
+}
+
+export function listPostsForEnrichment(source = null) {
+  if (source) {
+    return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND details_fetched = 0 AND source = ?").all(source);
+  }
+  return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND details_fetched = 0").all();
 }
 
 export function countPosts(source = null) {

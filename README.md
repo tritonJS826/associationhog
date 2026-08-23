@@ -53,14 +53,14 @@ node parse/kupujemprodajem.js --url "https://www.kupujemprodajem.com/kucni-ljubi
 
 kupujemprodajem only:
 
-| Option         | Description                                        |
-| -------------- | -------------------------------------------------- |
-| `--no-details` | Skip per-ad detail pages (faster; stores only the list snippet as description). |
+| Option      | Description                                                    |
+| ----------- | -------------------------------------------------------------- |
+| `--retries` | Retries per page when the site soft-blocks (default 3).        |
 
 ```bash
 # Test on a single page
 node parse/halooglasi.js --url "..." --max-pages 1
-node parse/kupujemprodajem.js --url "..." --max-pages 1 --no-details
+node parse/kupujemprodajem.js --url "..." --max-pages 1
 ```
 
 The database is stored at `data/associationhog.sqlite` (table `posts`).
@@ -72,7 +72,8 @@ The database is stored at `data/associationhog.sqlite` (table `posts`).
 | `make init` | Installs `node_modules` (via `npm install`) and creates/updates the SQLite DB and its schema. | Once after cloning the repo, and again after pulling changes that touch the schema. |
 | `make parse` | Scrapes **both** resources and upserts new posts (runs `parse-halooglasi` and `parse-kupujemprodajem` in parallel). | To (re)collect listings and add new/updated ads. |
 | `make parse-halooglasi` | Scrapes halooglasi (psi + macke) only. | When you only want halooglasi data. |
-| `make parse-kupujemprodajem` | Scrapes kupujemprodajem only. | When you only want kupujemprodajem data. |
+| `make parse-kupujemprodajem` | Scrapes kupujemprodajem listings (list-only: title/city/price/image). | When you want to collect kupujemprodajem ads. |
+| `make enrich` | Slowly visits each open kupujemprodajem ad to fill in description + photos. Soft-block safe (skips already-enriched, resumes on re-run). | After `make parse-kupujemprodajem`, when you want full ad details. |
 | `make recheck` | Re-visits the URL of every open post (`closed_by = 'not_closed_yet'`) to detect which ads were closed and mark them (`author` vs `platform`). | Periodically after scraping, to keep closure status accurate. Closed ads disappear from listings, so only this pass can catch them. |
 | `make sql-overview` | Prints a summary of stored posts. | To inspect the data. |
 | `make clean` | Deletes the SQLite database. | To reset everything and start fresh. |
@@ -86,7 +87,7 @@ development run the script directly:
 node parse/recheck.js --source halooglasi-psi --limit 5 --delay 3000
 ```
 
-Typical workflow: `make init` → `make parse` → `make recheck` → `make sql-overview`.
+Typical workflow: `make init` → `make parse` → `make enrich` → `make recheck` → `make sql-overview`.
 
 ## Post lifecycle & closure status
 

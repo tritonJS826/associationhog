@@ -1,29 +1,10 @@
 import { upsertPost } from './db.js';
-import { classifyClose, toDateOnly } from './close.js';
 
 const BASE_URL = 'https://www.kupujemprodajem.com';
 
-function stripHtml(str) {
-  return (str ?? '')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function extractPageInfo() {
-  const articles = document.querySelectorAll('article');
-  const adLinks = [...articles].map(a => {
-    const link = a.querySelector('a[href*="/oglas/"]');
-    return link?.getAttribute('href');
-  }).filter(Boolean);
-
-  // Pagination
   const paginationLinks = document.querySelectorAll('a[href*="/grupa/"]');
   const pageNums = [...paginationLinks]
     .map(a => a.textContent?.trim())
@@ -35,15 +16,50 @@ function extractPageInfo() {
   const totalText = document.body?.innerText?.match(/(\d[\d.]*)\s*oglas/);
   const total = totalText ? parseInt(totalText[1].replace(/\./g, ''), 10) : 0;
 
-  return { adLinks, maxPage, total };
+  return { maxPage, total };
+}
+
+function extractListAds(source) {
+  const articles = [...document.querySelectorAll('article')];
+  const ads = articles
+    .map(a => {
+      const link = a.querySelector('a[href*="/oglas/"]');
+      const nameEl = a.querySelector('[class*=name]');
+      const cityEl = a.querySelector('[class*=originAndPromoLocation]');
+      const priceEl = a.querySelector('[class*=inlinePrice], [class*=price]');
+      const imgEl = a.querySelector('img[src*="kupujemprodajem"]');
+
+      const title = nameEl?.textContent?.trim() || link?.getAttribute('aria-label') || null;
+      const href = link?.getAttribute('href');
+      const match = href?.match(/\/oglas\/(\d+)/);
+      const id = match ? match[1] : null;
+
+      return {
+        id,
+        source,
+        url: href ? 'https://www.kupujemprodajem.com' + href : null,
+        title,
+        description: title,
+        city: cityEl?.textContent?.trim() || null,
+        price: priceEl?.textContent?.trim() || null,
+        imgSrc: imgEl?.getAttribute('src') || null,
+      };
+    })
+    .filter(a => a.id);
+
+  const challenge =
+    /just a moment/i.test(document.title) ||
+    !!document.querySelector('iframe[src*="recaptcha"], .g-recaptcha, #header-captcha-id');
+
+  return { ads, articleCount: articles.length, challenge };
 }
 
 export async function scrapeKupujemProdajem({
   url,
   source = 'kupujemprodajem',
   maxPages = Infinity,
-  delayMs = 3000,
-  fetchDetails = true,
+  delayMs = 8000,
+  retries = 3,
 } = {}) {
   const puppeteerExtra = (await import('puppeteer-extra')).default;
   const { default: StealthPlugin } = await import('puppeteer-extra-plugin-stealth');
@@ -55,10 +71,39 @@ export async function scrapeKupujemProdajem({
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
-    // Load first page to get pagination info
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForSelector('article', { timeout: 15000 }).catch(() => {});
-    await new Promise(r => setTimeout(r, 5000));
+    // Rate limiter: enforce a minimum gap between successive navigations so the
+    // site's anti-bot doesn't kick in and start serving skeleton-only pages.
+    let lastNav = 0;
+    const pause = async () => {
+      const gap = delayMs - (Date.now() - lastNav);
+      if (gap > 0) await sleep(gap);
+      lastNav = Date.now();
+    };
+
+    const loadList = async (pageUrl) => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        await pause();
+        await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+        await page.waitForSelector('article', { timeout: 20000 }).catch(() => {});
+        // Give client-side JS time to replace skeleton placeholders with real ads.
+        await sleep(4000);
+
+        const { ads, articleCount, challenge } = await page.evaluate(extractListAds, source);
+        if (ads.length > 0) return ads;
+
+        // articles present but no usable ads == soft-block skeleton / captcha.
+        const backoff = delayMs * 2 ** attempt;
+        console.warn(
+          `  [kupujemprodajem] ${pageUrl}: 0 ads (articles=${articleCount}, challenge=${challenge}) - blocked, retry ${attempt}/${retries} in ${Math.round(backoff / 1000)}s`
+        );
+        if (attempt === retries) {
+          throw new Error(`kupujemprodajem returned no ads for ${pageUrl} after ${retries} attempts (soft-blocked)`);
+        }
+        await sleep(backoff);
+      }
+    };
+
+    const firstAds = await loadList(url);
 
     const pageInfo = await page.evaluate(extractPageInfo);
     const totalPages = pageInfo.maxPage || 1;
@@ -66,48 +111,22 @@ export async function scrapeKupujemProdajem({
     const pages = Math.min(totalPages, maxPages === Infinity ? totalPages : maxPages);
 
     console.log(`[kupujemprodajem] source: ${source}`);
-    console.log(`[kupujemprodajem] total ads: ${totalCount}, pages: ${totalPages}, fetching: ${pages}`);
+    console.log(`[kupujemprodajem] total ads: ${totalCount}, pages: ${totalPages}, fetching: ${pages}, delay: ${delayMs}ms`);
 
     let saved = 0;
     let duplicates = 0;
 
     for (let pg = 1; pg <= pages; pg++) {
-      const pageUrl = url.replace(/\/\d+$/, `/${pg}`);
-      if (pg > 1) {
-        await page.goto(pageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-        await page.waitForSelector('article', { timeout: 15000 }).catch(() => {});
-        await new Promise(r => setTimeout(r, 5000));
+      let listAds;
+      if (pg === 1) {
+        listAds = firstAds;
+      } else {
+        const pageUrl = url.replace(/\/\d+$/, `/${pg}`);
+        listAds = await loadList(pageUrl);
       }
 
-      const listAds = await page.evaluate((src) => {
-        const articles = document.querySelectorAll('article');
-        return [...articles].map(a => {
-          const link = a.querySelector('a[href*="/oglas/"]');
-          const nameEl = a.querySelector('[class*=name]');
-          const cityEl = a.querySelector('[class*=originAndPromoLocation]');
-          const priceEl = a.querySelector('[class*=inlinePrice], [class*=price]');
-          const imgEl = a.querySelector('img[src*="kupujemprodajem"]');
-
-          const title = nameEl?.textContent?.trim() || link?.getAttribute('aria-label') || null;
-          const href = link?.getAttribute('href');
-          const match = href?.match(/\/oglas\/(\d+)/);
-          const id = match ? match[1] : null;
-
-          return {
-            id,
-            source: src,
-            url: href ? 'https://www.kupujemprodajem.com' + href : null,
-            title,
-            description: title,
-            city: cityEl?.textContent?.trim() || null,
-            price: priceEl?.textContent?.trim() || null,
-            imgSrc: imgEl?.getAttribute('src') || null,
-          };
-        }).filter(a => a.id);
-      }, source);
-
       for (const ad of listAds) {
-        let post = {
+        const post = {
           id: ad.id,
           source: ad.source,
           url: ad.url,
@@ -118,85 +137,6 @@ export async function scrapeKupujemProdajem({
           images: JSON.stringify(ad.imgSrc ? [ad.imgSrc] : []),
           raw: JSON.stringify(ad),
         };
-
-        if (fetchDetails && ad.url) {
-          try {
-            await page.goto(ad.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForSelector('h1', { timeout: 15000 }).catch(() => {});
-            await new Promise(r => setTimeout(r, 5000));
-
-            const detail = await page.evaluate((adId) => {
-              const nextData = window.__NEXT_DATA__;
-              const byId = nextData?.props?.initialReduxState?.ad?.byId ?? {};
-              const d = byId[adId];
-
-              if (d) return { type: 'nextData', detail: d };
-
-              // DOM fallback
-              const titleEl = document.querySelector('h1');
-              const descEl = document.querySelector('[class*=description] p, [class*=adDescription]');
-              const priceEl = document.querySelector('[class*=price]');
-              const imgs = [...document.querySelectorAll('img[src*="kupujemprodajem"]')].map(i => i.src);
-
-              return {
-                type: 'dom',
-                title: titleEl?.textContent?.trim(),
-                description: descEl?.textContent?.trim(),
-                price: priceEl?.textContent?.trim(),
-                images: imgs,
-              };
-            }, ad.id);
-
-            if (detail.type === 'nextData' && detail.detail) {
-              const d = detail.detail;
-              const desc = stripHtml(d.description);
-              const images = [];
-              if (d.image) images.push(d.image);
-              if (Array.isArray(d.photos)) {
-                for (const p of d.photos) {
-                  if (p.original) images.push(p.original);
-                  else if (p.thumbnail) images.push(p.thumbnail);
-                }
-              }
-              if (d.photosBig) images.push(d.photosBig);
-
-              const isDeleted = d.isAdDeleted === true;
-              const status = typeof d.status === 'string' ? d.status.toLowerCase() : '';
-              const closed = isDeleted || (status !== '' && status !== 'normal' && status !== 'active');
-              const closedBy = isDeleted
-                ? 'author'
-                : closed
-                  ? (classifyClose(d.status) ?? 'platform')
-                  : 'not_closed_yet';
-
-              post = {
-                id: String(d.id),
-                source,
-                url: d.adUrl ? BASE_URL + d.adUrl : ad.url,
-                title: d.name || ad.title,
-                description: desc || ad.description,
-                city: d.location || ad.city,
-                price: d.priceText || d.priceDisplay || ad.price,
-                images: images.length ? JSON.stringify([...new Set(images)]) : post.images,
-                raw: JSON.stringify(d),
-                closed_by: closedBy,
-                date_closed: closedBy !== 'not_closed_yet' ? (toDateOnly(d.adValidUntil) ?? null) : null,
-              };
-            } else if (detail.type === 'dom') {
-              const desc = stripHtml(detail.description);
-              post = {
-                ...post,
-                title: detail.title || post.title,
-                description: desc || post.description,
-                price: detail.price || post.price,
-                images: detail.images?.length ? JSON.stringify(detail.images) : post.images,
-              };
-            }
-            await new Promise(r => setTimeout(r, delayMs));
-          } catch (err) {
-            console.warn(`  [kupujemprodajem] detail fetch failed for ${ad.id}: ${err.message}; using list data`);
-          }
-        }
 
         const result = upsertPost(post);
         if (result.duplicate) duplicates++;

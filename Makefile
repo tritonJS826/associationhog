@@ -1,4 +1,4 @@
-.PHONY: init parse parse-halooglasi parse-kupujemprodajem recheck sql-overview clean
+.PHONY: init parse parse-halooglasi parse-kupujemprodajem enrich recheck sql-overview clean
 
 MAKEFLAGS += -j
 
@@ -28,6 +28,9 @@ parse-kupujemprodajem:
 
 recheck:
 	@node parse/recheck.js
+
+enrich:
+	@node parse/enrich.js --source kupujemprodajem
 
 sql-overview:
 	sqlite3 $(DB) < sqliteScripts/overview.sql
