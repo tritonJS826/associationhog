@@ -1,21 +1,21 @@
 # associationhog
 
-Scrape internet resources and store posts into a local SQLite database.
+A custom Node.js parser/aggregator that scrapes internet resources and stores
+posts into a local SQLite database.
 
-## Scripts and resources
+## Parsers
 
-- `parse:halooglasi:psi`
-  - https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true
-- `parse:halooglasi:macke`
-  - https://www.halooglasi.com/kucni-ljubimci/macke?poklanjam_b=true
+- `parse/halooglasi.js` — parses halooglasi.com listing pages.
+- `parse/kupujemprodajem.js` — parses kupujemprodajem.com listing pages.
 
-Planned (no script yet):
-
-- https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1
+Both write into the same `posts` table, so the project works as an aggregator
+across multiple sources. The target URL is always passed as a parameter (there
+are no hardcoded default resources).
 
 ## Requirements
 
-- Node.js >= 22 (uses built-in `fetch` and `node:sqlite`)
+- Node.js >= 22 (uses built-in `node:sqlite`)
+- `curl` (used by the fetcher to bypass Cloudflare bot checks)
 - make (optional, for convenience scripts)
 
 No npm dependencies are required.
@@ -26,22 +26,40 @@ No npm dependencies are required.
 # 1. Initialize the SQLite database (creates data/associationhog.sqlite)
 make init
 
-# 2. Parse the default resource (halooglasi "psi poklanjam")
-make parse
-
-# Or test with a single page first
-make parse-halooglasi-test
+# 2. Parse a resource by passing its URL
+make parse-halooglasi URL="https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
+make parse-kupujemprodajem URL="https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
 ```
 
 ## Usage
 
 ```bash
-# Parse each resource
-npm run parse:halooglasi:psi
-npm run parse:halooglasi:macke
+# halooglasi
+node parse/halooglasi.js --url "https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
 
-# Or run directly with a custom URL / limits
-node parse/halooglasi.js --url "https://www.halooglasi.com/kucni-ljubimci/macke?poklanjam_b=true" --max-pages 3
+# kupujemprodajem
+node parse/kupujemprodajem.js --url "https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
+```
+
+### Common options
+
+| Option         | Default | Description                                        |
+| -------------- | ------- | -------------------------------------------------- |
+| `--url`        | (none)  | Required. The listing page to parse.               |
+| `--source`     | per-script | Label stored in the `source` column.           |
+| `--max-pages`  | all     | Limit the number of pages to fetch (useful for testing). |
+| `--delay`      | `2000`  | Delay in ms between page fetches.                  |
+
+kupujemprodajem only:
+
+| Option         | Description                                        |
+| -------------- | -------------------------------------------------- |
+| `--no-details` | Skip per-ad detail pages (faster; stores only the list snippet as description). |
+
+```bash
+# Test on a single page
+node parse/halooglasi.js --url "..." --max-pages 1
+node parse/kupujemprodajem.js --url "..." --max-pages 1 --no-details
 ```
 
 The database is stored at `data/associationhog.sqlite` (table `posts`).

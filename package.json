@@ -4,8 +4,8 @@
   "description": "Scrape internet resources and store posts into a local SQLite database",
   "type": "module",
   "scripts": {
-    "parse:halooglasi:psi": "node parse/halooglasi.js --url \"https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true\"",
-    "parse:halooglasi:macke": "node parse/halooglasi.js --url \"https://www.halooglasi.com/kucni-ljubimci/macke?poklanjam_b=true\"",
+    "parse:halooglasi": "node parse/halooglasi.js",
+    "parse:kupujemprodajem": "node parse/kupujemprodajem.js",
     "db:init": "node parse/lib/db.js"
   },
   "engines": {
