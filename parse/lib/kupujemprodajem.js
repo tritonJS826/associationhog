@@ -77,17 +77,23 @@ function normalizeDetailAd(detail, source, fallback) {
   };
 }
 
+function lastSearchResult(data) {
+  return data.props?.initialReduxState?.search?.lastSearchResult ?? null;
+}
+
 export async function scrapeKupujemProdajem({
   url,
   source = 'kupujemprodajem',
   maxPages = Infinity,
-  delayMs = 2000,
+  delayMs = 3000,
   fetchDetails = true,
 } = {}) {
   const first = await fetchHtml(url);
   const data = extractNextData(first.text);
-  const search = data.props.initialReduxState.search;
-  const lastResult = search.lastSearchResult;
+  const lastResult = lastSearchResult(data);
+  if (!lastResult) {
+    throw new Error('search results not found in page (lastSearchResult is null)');
+  }
   const totalPages = lastResult.pages ?? 1;
   const totalCount = lastResult.total ?? 0;
   const pages = Math.min(totalPages, maxPages === Infinity ? totalPages : maxPages);
@@ -109,7 +115,12 @@ export async function scrapeKupujemProdajem({
       await delay(delayMs);
     }
 
-    const ads = pageData.props.initialReduxState.search.lastSearchResult.ads ?? [];
+    const pageResult = lastSearchResult(pageData);
+    if (!pageResult) {
+      console.warn(`[kupujemprodajem] page ${page}: no search results (lastSearchResult is null); stopping`);
+      break;
+    }
+    const ads = pageResult.ads ?? [];
     for (const ad of ads) {
       const listPost = normalizeListAd(ad, source);
 
@@ -118,13 +129,13 @@ export async function scrapeKupujemProdajem({
         try {
           const detailRes = await fetchHtml(listPost.url);
           const detailData = extractNextData(detailRes.text);
-          const byId = detailData.props.initialReduxState.ad?.byId ?? {};
+          const byId = detailData.props?.initialReduxState?.ad?.byId ?? {};
           const detail = byId[String(ad.ad_id)];
           if (detail) post = normalizeDetailAd(detail, source, listPost);
-          await delay(delayMs);
         } catch (err) {
           console.warn(`  [kupujemprodajem] detail fetch failed for ${ad.ad_id}: ${err.message}; using list data`);
         }
+        await delay(delayMs);
       }
 
       const result = upsertPost(post);

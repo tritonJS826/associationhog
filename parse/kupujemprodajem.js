@@ -6,7 +6,7 @@ function parseArgs(argv) {
     url: null,
     source: 'kupujemprodajem',
     maxPages: Infinity,
-    delayMs: 2000,
+    delayMs: 3000,
     fetchDetails: true,
   };
 
