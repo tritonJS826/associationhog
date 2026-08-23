@@ -1,51 +1,65 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import puppeteerExtra from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const execFileAsync = promisify(execFile);
+puppeteerExtra.use(StealthPlugin());
 
-const HEADERS = [
-  'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-  'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-  'Accept-Language: sr,en;q=0.8',
-  'Cache-Control: no-cache',
-];
+let browser = null;
 
-function curlArgs(url, timeoutMs) {
-  const args = ['-sL', '--compressed', '--connect-timeout', '15', '--max-time', String(timeoutMs)];
-  for (const h of HEADERS) args.push('-H', h);
-  args.push(url);
-  return args;
+async function getBrowser() {
+  if (!browser || !browser.connected) {
+    browser = await puppeteerExtra.launch({ headless: true, args: ['--no-sandbox'] });
+  }
+  return browser;
+}
+
+async function waitForCloudflare(p, timeoutMs) {
+  const deadline = Date.now() + Math.min(timeoutMs, 30000);
+  while (Date.now() < deadline) {
+    try {
+      const title = await p.title();
+      if (!/just a moment/i.test(title)) return true;
+    } catch {
+      return false;
+    }
+    await sleep(1000);
+  }
+  return false;
 }
 
 export async function fetchHtml(url, { retries = 4, delayMs = 2000, timeoutMs = 60000 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    let p;
     try {
-      const { stdout } = await execFileAsync('curl', curlArgs(url, timeoutMs), {
-        maxBuffer: 10 * 1024 * 1024,
-      });
-      const text = stdout;
-
-      if (/<title>Just a moment\.\.\.<\/title>/.test(text)) {
-        throw new Error(`Cloudflare challenge detected for ${url}`);
+      const b = await getBrowser();
+      p = await b.newPage();
+      await p.goto(url, { waitUntil: 'networkidle2', timeout: timeoutMs });
+      const resolved = await waitForCloudflare(p, timeoutMs);
+      if (!resolved) {
+        throw new Error(`Cloudflare challenge not resolved for ${url}`);
       }
-
+      const text = await p.content();
       return { text, status: 200, url };
     } catch (err) {
       lastError = err;
-      const stderr = err.stderr ? `\ncurl stderr: ${String(err.stderr).trim()}` : '';
-      console.warn(`  [fetch] attempt ${attempt + 1}/${retries + 1} failed: ${err.message}${stderr}`);
-      if (attempt === retries) {
-        err.message = `${err.message}${stderr}`;
-        break;
-      }
+      console.warn(`  [fetch] attempt ${attempt + 1}/${retries + 1} failed: ${err.message}`);
+      if (attempt === retries) break;
       const backoff = delayMs * Math.pow(2, attempt);
       console.warn(`    retrying in ${backoff}ms`);
       await sleep(backoff);
+    } finally {
+      if (p) await p.close().catch(() => {});
     }
   }
   throw lastError;
+}
+
+export async function closeBrowser() {
+  if (browser) {
+    await browser.close().catch(() => {});
+    browser = null;
+  }
 }
 
 export async function delay(ms) {

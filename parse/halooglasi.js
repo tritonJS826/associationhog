@@ -1,5 +1,6 @@
 import { scrapeHaloOglasi } from './lib/halooglasi.js';
 import { countPosts, DB_PATH } from './lib/db.js';
+import { closeBrowser } from './lib/fetch.js';
 
 function parseArgs(argv) {
   const args = {
@@ -37,4 +38,6 @@ try {
 } catch (err) {
   console.error(`[halooglasi] error: ${err.message}`);
   process.exit(1);
+} finally {
+  await closeBrowser();
 }

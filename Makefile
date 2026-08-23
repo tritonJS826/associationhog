@@ -1,4 +1,4 @@
-.PHONY: init parse parse-halooglasi-psi parse-halooglasi-macke parse-kupujemprodajem clean
+.PHONY: init parse parse-halooglasi-psi parse-halooglasi-macke parse-kupujemprodajem sql-overview clean
 
 DB = data/associationhog.sqlite
 
@@ -23,6 +23,9 @@ parse-halooglasi-macke:
 
 parse-kupujemprodajem:
 	@node parse/kupujemprodajem.js --url "$(KUPUJEMPRODAJEM_URL)"
+
+sql-overview:
+	sqlite3 $(DB) < sqliteScripts/overview.sql
 
 clean:
 	@rm -f $(DB) $(DB)-wal $(DB)-shm

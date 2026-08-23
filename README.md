@@ -15,18 +15,19 @@ are no hardcoded default resources).
 ## Requirements
 
 - Node.js >= 22 (uses built-in `node:sqlite`)
-- `curl` (used by the fetcher to bypass Cloudflare bot checks)
+- puppeteer (used by the fetcher to bypass Cloudflare bot checks)
 - make (optional, for convenience scripts)
-
-No npm dependencies are required.
 
 ## Installation
 
 ```bash
-# 1. Initialize the SQLite database (creates data/associationhog.sqlite)
+# 1. Install dependencies
+npm install
+
+# 2. Initialize the SQLite database (creates data/associationhog.sqlite)
 make init
 
-# 2. Parse a resource by passing its URL
+# 3. Parse a resource by passing its URL
 make parse-halooglasi URL="https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
 make parse-kupujemprodajem URL="https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
 ```
