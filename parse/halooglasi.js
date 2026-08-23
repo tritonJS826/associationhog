@@ -1,9 +1,5 @@
-import { assertNodeVersion } from './lib/ensure-node.js';
-
-assertNodeVersion();
-
-const { scrapeHaloOglasi } = await import('./lib/halooglasi.js');
-const { countPosts, DB_PATH } = await import('./lib/db.js');
+import { scrapeHaloOglasi } from './lib/halooglasi.js';
+import { countPosts, DB_PATH } from './lib/db.js';
 
 function parseArgs(argv) {
   const args = {

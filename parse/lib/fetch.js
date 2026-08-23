@@ -34,8 +34,14 @@ export async function fetchHtml(url, { retries = 4, delayMs = 2000 } = {}) {
       return { text, status: 200, url };
     } catch (err) {
       lastError = err;
+      const stderr = err.stderr ? `\ncurl stderr: ${String(err.stderr).trim()}` : '';
+      console.warn(`  [fetch] attempt ${attempt + 1}/${retries + 1} failed: ${err.message}${stderr}`);
+      if (attempt === retries) {
+        err.message = `${err.message}${stderr}`;
+        break;
+      }
       const backoff = delayMs * Math.pow(2, attempt);
-      console.warn(`  [fetch] attempt ${attempt + 1}/${retries + 1} failed: ${err.message}; retrying in ${backoff}ms`);
+      console.warn(`    retrying in ${backoff}ms`);
       await sleep(backoff);
     }
   }
