@@ -1,4 +1,6 @@
-.PHONY: init parse parse-halooglasi-psi parse-halooglasi-macke parse-kupujemprodajem sql-overview clean
+.PHONY: init parse parse-halooglasi parse-kupujemprodajem sql-overview clean
+
+MAKEFLAGS += -j
 
 DB = data/associationhog.sqlite
 
@@ -9,16 +11,16 @@ KUPUJEMPRODAJEM_URL = https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanj
 init:
 	@echo "Checking node version..."
 	@node --version
+	@echo "Installing dependencies..."
+	@npm install
 	@mkdir -p data
 	@echo "Initializing database..."
 	@node -e "import('./parse/lib/db.js').then(() => console.log('DB ready: $(DB)'))"
 
-parse: parse-halooglasi-psi parse-halooglasi-macke parse-kupujemprodajem
+parse: parse-halooglasi parse-kupujemprodajem
 
-parse-halooglasi-psi:
+parse-halooglasi:
 	@node parse/halooglasi.js --url "$(HALOOGLASI_PSI_URL)" --source halooglasi-psi
-
-parse-halooglasi-macke:
 	@node parse/halooglasi.js --url "$(HALOOGLASI_MACKE_URL)" --source halooglasi-macke
 
 parse-kupujemprodajem:

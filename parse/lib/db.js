@@ -14,6 +14,7 @@ const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
   PRAGMA journal_mode = WAL;
+  PRAGMA busy_timeout = 30000;
 
   CREATE TABLE IF NOT EXISTS posts (
     id               TEXT PRIMARY KEY,
