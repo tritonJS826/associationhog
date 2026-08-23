@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="$LOG_DIR/parse_and_recheck_$(date +%Y%m%d_%H%M%S).log"
+
+echo "=== parse_and_recheck started at $(date) ===" | tee -a "$LOG_FILE"
+
+cd "$SCRIPT_DIR"
+
+echo "--- Running parse ---" | tee -a "$LOG_FILE"
+make parse >> "$LOG_FILE" 2>&1
+
+echo "--- Running recheck ---" | tee -a "$LOG_FILE"
+make recheck >> "$LOG_FILE" 2>&1
+
+echo "=== parse_and_recheck finished at $(date) ===" | tee -a "$LOG_FILE"
+
+find "$LOG_DIR" -name "parse_and_recheck_*.log" -mtime +7 -delete 2>/dev/null || true
