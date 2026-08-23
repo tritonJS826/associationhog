@@ -1,6 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,7 +21,6 @@ db.exec(`
     url              TEXT,
     title            TEXT,
     description      TEXT,
-    description_hash TEXT,
     city                      TEXT,
     price                     TEXT,
     images                    TEXT,
@@ -38,9 +36,6 @@ db.exec(`
 
 // Migrations for databases created before a given column existed.
 const columns = db.prepare("PRAGMA table_info(posts)").all().map((c) => c.name);
-if (!columns.includes('description_hash')) {
-  db.exec('ALTER TABLE posts ADD COLUMN description_hash TEXT');
-}
 if (!columns.includes('closed_by')) {
   db.exec("ALTER TABLE posts ADD COLUMN closed_by TEXT NOT NULL DEFAULT 'not_closed_yet'");
 }
@@ -63,40 +58,22 @@ if (oldColumns.includes('date_closed_by_ad_maker')) {
   db.exec('ALTER TABLE posts DROP COLUMN date_closed_by_ad_maker');
 }
 
-export function normalizeForHash(value) {
-  return (value ?? '')
-    .toString()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-export function descriptionHash(description, title = '') {
-  const input = normalizeForHash(description || title);
-  if (!input) return null;
-  return createHash('sha256').update(input).digest('hex');
+// Legacy hash-based dedup column is no longer used.
+const dedupColumns = db.prepare("PRAGMA table_info(posts)").all().map((c) => c.name);
+if (dedupColumns.includes('description_hash')) {
+  db.exec('ALTER TABLE posts DROP COLUMN description_hash');
 }
 
 // Migrate NULL images to an empty JSON array.
 db.exec("UPDATE posts SET images = '[]' WHERE images IS NULL");
 
-// Backfill hashes for rows that predate the description_hash column.
-const rowsWithoutHash = db.prepare(`
-  SELECT id, description, title FROM posts WHERE description_hash IS NULL
-`).all();
-for (const row of rowsWithoutHash) {
-  const hash = descriptionHash(row.description, row.title);
-  db.prepare('UPDATE posts SET description_hash = ? WHERE id = ?').run(hash, row.id);
-}
-
 const INSERT_POST = db.prepare(`
-  INSERT INTO posts (id, source, url, title, description, description_hash, city, price, images, raw, closed_by, date_closed, first_seen, last_seen)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO posts (id, source, url, title, description, city, price, images, raw, closed_by, date_closed, first_seen, last_seen)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     url = excluded.url,
     title = excluded.title,
     description = excluded.description,
-    description_hash = excluded.description_hash,
     city = excluded.city,
     price = excluded.price,
     images = excluded.images,
@@ -106,12 +83,8 @@ const INSERT_POST = db.prepare(`
     last_seen = excluded.last_seen
 `);
 
-const FIND_BY_HASH = db.prepare(`
-  SELECT id FROM posts WHERE source = ? AND description_hash = ?
-`);
-
-const UPDATE_EXISTING_BY_HASH = db.prepare(`
-  UPDATE posts SET last_seen = ? WHERE source = ? AND description_hash = ?
+const FIND_BY_ID = db.prepare(`
+  SELECT id FROM posts WHERE id = ?
 `);
 
 const MARK_CLOSED = db.prepare(`
@@ -122,16 +95,9 @@ const MARK_CLOSED = db.prepare(`
 
 export function upsertPost(post) {
   const now = new Date().toISOString();
-  const hash = post.description_hash ?? descriptionHash(post.description, post.title);
   const closedBy = post.closed_by ?? 'not_closed_yet';
 
-  if (hash) {
-    const existing = FIND_BY_HASH.get(post.source, hash);
-    if (existing) {
-      UPDATE_EXISTING_BY_HASH.run(now, post.source, hash);
-      return { inserted: false, duplicate: true, id: existing.id };
-    }
-  }
+  const existing = FIND_BY_ID.get(post.id);
 
   INSERT_POST.run(
     post.id,
@@ -139,7 +105,6 @@ export function upsertPost(post) {
     post.url ?? null,
     post.title ?? null,
     post.description ?? null,
-    hash,
     post.city ?? null,
     post.price ?? null,
     post.images ?? '[]',
@@ -150,6 +115,7 @@ export function upsertPost(post) {
     now
   );
 
+  if (existing) return { inserted: false, duplicate: true, id: existing.id };
   return { inserted: true, duplicate: false, id: post.id };
 }
 

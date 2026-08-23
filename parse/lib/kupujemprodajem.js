@@ -1,4 +1,4 @@
-import { upsertPost, descriptionHash } from './db.js';
+import { upsertPost } from './db.js';
 import { classifyClose, toDateOnly } from './close.js';
 
 const BASE_URL = 'https://www.kupujemprodajem.com';
@@ -107,14 +107,12 @@ export async function scrapeKupujemProdajem({
       }, source);
 
       for (const ad of listAds) {
-        const description_hash = descriptionHash(ad.description, ad.title);
         let post = {
           id: ad.id,
           source: ad.source,
           url: ad.url,
           title: ad.title,
           description: ad.description,
-          description_hash,
           city: ad.city,
           price: ad.price,
           images: JSON.stringify(ad.imgSrc ? [ad.imgSrc] : []),
@@ -177,7 +175,6 @@ export async function scrapeKupujemProdajem({
                 url: d.adUrl ? BASE_URL + d.adUrl : ad.url,
                 title: d.name || ad.title,
                 description: desc || ad.description,
-                description_hash: descriptionHash(desc, d.name),
                 city: d.location || ad.city,
                 price: d.priceText || d.priceDisplay || ad.price,
                 images: images.length ? JSON.stringify([...new Set(images)]) : post.images,
@@ -191,7 +188,6 @@ export async function scrapeKupujemProdajem({
                 ...post,
                 title: detail.title || post.title,
                 description: desc || post.description,
-                description_hash: descriptionHash(desc, detail.title),
                 price: detail.price || post.price,
                 images: detail.images?.length ? JSON.stringify(detail.images) : post.images,
               };

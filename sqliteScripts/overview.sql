@@ -23,8 +23,7 @@ ORDER BY total_posts DESC;
 .print ================================================
 SELECT
     COUNT(*)                                     AS total_posts,
-    COUNT(DISTINCT source)                       AS resources,
-    COUNT(DISTINCT description_hash)             AS unique_descriptions
+    COUNT(DISTINCT source)                       AS resources
 FROM posts;
 
 .print

@@ -1,5 +1,5 @@
 import { fetchHtml, delay } from './fetch.js';
-import { upsertPost, descriptionHash } from './db.js';
+import { upsertPost } from './db.js';
 import { classifyClose, toDateOnly } from './close.js';
 
 const BASE_URL = 'https://www.halooglasi.com';
@@ -94,7 +94,6 @@ function normalizeAd(ad, source) {
     url: ad.RelativeUrl ? BASE_URL + ad.RelativeUrl : null,
     title,
     description,
-    description_hash: descriptionHash(description, title),
     city: ad.City || parsed.city,
     price: parsed.price,
     images: JSON.stringify(parsed.images),

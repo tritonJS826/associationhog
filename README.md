@@ -102,13 +102,12 @@ only sees listings, so a closed ad simply disappears from results; run
 
 ## Deduplication
 
-Each post is fingerprinted with a `description_hash` (SHA-256 of the normalized
-description, falling back to the title). Re-running a scraper does not create
-duplicate rows: when a post with the same `description_hash` already exists for
-the same `source`, only its `last_seen` timestamp is refreshed.
+Re-running a scraper does not create duplicate rows: posts are keyed by their
+marketplace `id`, so a record with the same `id` is updated in place (its
+`last_seen` timestamp is refreshed).
 
 ```bash
-# Inspect the stored posts and their hashes
+# Inspect the stored posts
 sqlite3 data/associationhog.sqlite "SELECT source, COUNT(*) FROM posts GROUP BY source;"
-sqlite3 data/associationhog.sqlite "SELECT id, title, description_hash FROM posts LIMIT 5;"
+sqlite3 data/associationhog.sqlite "SELECT id, title FROM posts LIMIT 5;"
 ```
