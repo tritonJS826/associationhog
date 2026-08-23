@@ -11,18 +11,18 @@ const HEADERS = [
   'Cache-Control: no-cache',
 ];
 
-function curlArgs(url) {
-  const args = ['-sL', '--compressed', '--max-time', '30'];
+function curlArgs(url, timeoutMs) {
+  const args = ['-sL', '--compressed', '--connect-timeout', '15', '--max-time', String(timeoutMs)];
   for (const h of HEADERS) args.push('-H', h);
   args.push(url);
   return args;
 }
 
-export async function fetchHtml(url, { retries = 4, delayMs = 2000 } = {}) {
+export async function fetchHtml(url, { retries = 4, delayMs = 2000, timeoutMs = 60000 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const { stdout } = await execFileAsync('curl', curlArgs(url), {
+      const { stdout } = await execFileAsync('curl', curlArgs(url, timeoutMs), {
         maxBuffer: 10 * 1024 * 1024,
       });
       const text = stdout;
