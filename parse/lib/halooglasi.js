@@ -1,5 +1,6 @@
 import { fetchHtml, delay } from './fetch.js';
 import { upsertPost, descriptionHash } from './db.js';
+import { classifyClose, toDateOnly } from './close.js';
 
 const BASE_URL = 'https://www.halooglasi.com';
 
@@ -78,6 +79,15 @@ function normalizeAd(ad, source) {
   const parsed = parseListHtml(ad.ListHTML);
   const description = ad.Text || parsed.description;
   const title = ad.Title || null;
+
+  const stoppageReason = ad.StoppageReasonDescription ?? ad.StoppageReasonIds;
+  const stopped = Array.isArray(ad.StoppageReasonIds)
+    ? ad.StoppageReasonIds.length > 0
+    : ad.StoppageReasonIds != null;
+  const closedBy = stopped
+    ? (classifyClose(stoppageReason ? String(stoppageReason) : null) ?? 'platform')
+    : 'not_closed_yet';
+
   return {
     id: String(ad.Id),
     source,
@@ -87,8 +97,10 @@ function normalizeAd(ad, source) {
     description_hash: descriptionHash(description, title),
     city: ad.City || parsed.city,
     price: parsed.price,
-    images: parsed.images.length ? JSON.stringify(parsed.images) : null,
+    images: JSON.stringify(parsed.images),
     raw: JSON.stringify(ad),
+    closed_by: closedBy,
+    date_closed: closedBy !== 'not_closed_yet' ? (toDateOnly(ad.ValidTo) ?? null) : null,
   };
 }
 

@@ -1,4 +1,4 @@
-.PHONY: init parse parse-halooglasi parse-kupujemprodajem sql-overview clean
+.PHONY: init parse parse-halooglasi parse-kupujemprodajem recheck sql-overview clean
 
 MAKEFLAGS += -j
 
@@ -25,6 +25,9 @@ parse-halooglasi:
 
 parse-kupujemprodajem:
 	@node parse/kupujemprodajem.js --url "$(KUPUJEMPRODAJEM_URL)"
+
+recheck:
+	@node parse/recheck.js
 
 sql-overview:
 	sqlite3 $(DB) < sqliteScripts/overview.sql

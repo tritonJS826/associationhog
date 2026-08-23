@@ -23,21 +23,44 @@ db.exec(`
     title            TEXT,
     description      TEXT,
     description_hash TEXT,
-    city             TEXT,
-    price            TEXT,
-    images           TEXT,
-    raw              TEXT,
-    first_seen       TEXT NOT NULL,
-    last_seen        TEXT NOT NULL
+    city                      TEXT,
+    price                     TEXT,
+    images                    TEXT,
+    raw                       TEXT,
+    closed_by                 TEXT NOT NULL DEFAULT 'not_closed_yet',
+    date_closed               TEXT,
+    first_seen                TEXT NOT NULL,
+    last_seen                 TEXT NOT NULL
   );
 
   CREATE INDEX IF NOT EXISTS idx_posts_source ON posts (source);
 `);
 
-// Migration: add description_hash column to databases created before it existed.
+// Migrations for databases created before a given column existed.
 const columns = db.prepare("PRAGMA table_info(posts)").all().map((c) => c.name);
 if (!columns.includes('description_hash')) {
   db.exec('ALTER TABLE posts ADD COLUMN description_hash TEXT');
+}
+if (!columns.includes('closed_by')) {
+  db.exec("ALTER TABLE posts ADD COLUMN closed_by TEXT NOT NULL DEFAULT 'not_closed_yet'");
+}
+if (!columns.includes('date_closed')) {
+  db.exec('ALTER TABLE posts ADD COLUMN date_closed TEXT');
+}
+
+// Migrate from the old boolean columns (is_closed_by_ad_maker / date_closed_by_ad_maker).
+const oldColumns = db.prepare("PRAGMA table_info(posts)").all().map((c) => c.name);
+if (oldColumns.includes('is_closed_by_ad_maker')) {
+  db.exec(`
+    UPDATE posts
+      SET closed_by = CASE WHEN is_closed_by_ad_maker = 1 THEN 'author' ELSE 'not_closed_yet' END,
+          date_closed = date_closed_by_ad_maker
+      WHERE closed_by = 'not_closed_yet' AND date_closed IS NULL;
+    ALTER TABLE posts DROP COLUMN is_closed_by_ad_maker;
+  `);
+}
+if (oldColumns.includes('date_closed_by_ad_maker')) {
+  db.exec('ALTER TABLE posts DROP COLUMN date_closed_by_ad_maker');
 }
 
 export function normalizeForHash(value) {
@@ -54,6 +77,9 @@ export function descriptionHash(description, title = '') {
   return createHash('sha256').update(input).digest('hex');
 }
 
+// Migrate NULL images to an empty JSON array.
+db.exec("UPDATE posts SET images = '[]' WHERE images IS NULL");
+
 // Backfill hashes for rows that predate the description_hash column.
 const rowsWithoutHash = db.prepare(`
   SELECT id, description, title FROM posts WHERE description_hash IS NULL
@@ -64,8 +90,8 @@ for (const row of rowsWithoutHash) {
 }
 
 const INSERT_POST = db.prepare(`
-  INSERT INTO posts (id, source, url, title, description, description_hash, city, price, images, raw, first_seen, last_seen)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO posts (id, source, url, title, description, description_hash, city, price, images, raw, closed_by, date_closed, first_seen, last_seen)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     url = excluded.url,
     title = excluded.title,
@@ -75,6 +101,8 @@ const INSERT_POST = db.prepare(`
     price = excluded.price,
     images = excluded.images,
     raw = excluded.raw,
+    closed_by = excluded.closed_by,
+    date_closed = excluded.date_closed,
     last_seen = excluded.last_seen
 `);
 
@@ -86,9 +114,16 @@ const UPDATE_EXISTING_BY_HASH = db.prepare(`
   UPDATE posts SET last_seen = ? WHERE source = ? AND description_hash = ?
 `);
 
+const MARK_CLOSED = db.prepare(`
+  UPDATE posts
+  SET closed_by = ?, date_closed = ?, last_seen = ?
+  WHERE id = ?
+`);
+
 export function upsertPost(post) {
   const now = new Date().toISOString();
   const hash = post.description_hash ?? descriptionHash(post.description, post.title);
+  const closedBy = post.closed_by ?? 'not_closed_yet';
 
   if (hash) {
     const existing = FIND_BY_HASH.get(post.source, hash);
@@ -107,13 +142,27 @@ export function upsertPost(post) {
     hash,
     post.city ?? null,
     post.price ?? null,
-    post.images ?? null,
+    post.images ?? '[]',
     post.raw ?? null,
+    closedBy,
+    post.date_closed ?? null,
     post.first_seen ?? now,
     now
   );
 
   return { inserted: true, duplicate: false, id: post.id };
+}
+
+export function markClosed(id, closedBy, dateClosed = null) {
+  const now = new Date().toISOString();
+  MARK_CLOSED.run(closedBy ?? 'not_closed_yet', dateClosed ?? null, now, id);
+}
+
+export function listOpenPosts(source = null) {
+  if (source) {
+    return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND source = ?").all(source);
+  }
+  return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet'").all();
 }
 
 export function countPosts(source = null) {

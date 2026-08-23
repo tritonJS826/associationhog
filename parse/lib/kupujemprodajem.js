@@ -1,4 +1,5 @@
 import { upsertPost, descriptionHash } from './db.js';
+import { classifyClose, toDateOnly } from './close.js';
 
 const BASE_URL = 'https://www.kupujemprodajem.com';
 
@@ -116,7 +117,7 @@ export async function scrapeKupujemProdajem({
           description_hash,
           city: ad.city,
           price: ad.price,
-          images: ad.imgSrc ? JSON.stringify([ad.imgSrc]) : null,
+          images: JSON.stringify(ad.imgSrc ? [ad.imgSrc] : []),
           raw: JSON.stringify(ad),
         };
 
@@ -161,6 +162,15 @@ export async function scrapeKupujemProdajem({
               }
               if (d.photosBig) images.push(d.photosBig);
 
+              const isDeleted = d.isAdDeleted === true;
+              const status = typeof d.status === 'string' ? d.status.toLowerCase() : '';
+              const closed = isDeleted || (status !== '' && status !== 'normal' && status !== 'active');
+              const closedBy = isDeleted
+                ? 'author'
+                : closed
+                  ? (classifyClose(d.status) ?? 'platform')
+                  : 'not_closed_yet';
+
               post = {
                 id: String(d.id),
                 source,
@@ -172,6 +182,8 @@ export async function scrapeKupujemProdajem({
                 price: d.priceText || d.priceDisplay || ad.price,
                 images: images.length ? JSON.stringify([...new Set(images)]) : post.images,
                 raw: JSON.stringify(d),
+                closed_by: closedBy,
+                date_closed: closedBy !== 'not_closed_yet' ? (toDateOnly(d.adValidUntil) ?? null) : null,
               };
             } else if (detail.type === 'dom') {
               const desc = stripHtml(detail.description);
