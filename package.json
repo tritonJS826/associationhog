@@ -6,6 +6,8 @@
   "scripts": {
     "parse:halooglasi": "node parse/halooglasi.js",
     "parse:kupujemprodajem": "node parse/kupujemprodajem.js",
+    "parse:telegram": "node parse/telegram.js",
+    "enrich:telegram": "node parse/enrich-telegram.js",
     "db:init": "node parse/lib/db.js"
   },
   "engines": {
@@ -14,7 +16,9 @@
   "dependencies": {
     "puppeteer": "^25.8.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "telegram": "^2.26.22",
+    "teleproto": "^1.228.5"
   },
   "allowScripts": {
     "puppeteer@25.8.0": true

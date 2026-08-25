@@ -33,6 +33,20 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_posts_source ON posts (source);
+
+  CREATE TABLE IF NOT EXISTS telegram_messages (
+    id               TEXT PRIMARY KEY,
+    channel          TEXT NOT NULL,
+    message_id       INTEGER NOT NULL,
+    text             TEXT,
+    date             TEXT NOT NULL,
+    first_seen       TEXT NOT NULL,
+    last_seen        TEXT NOT NULL,
+    is_adoption_search INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_telegram_channel ON telegram_messages (channel);
+  CREATE INDEX IF NOT EXISTS idx_telegram_adoption ON telegram_messages (is_adoption_search);
 `);
 
 // Migrations for databases created before a given column existed.
@@ -70,6 +84,12 @@ if (dedupColumns.includes('description_hash')) {
 
 // Migrate NULL images to an empty JSON array.
 db.exec("UPDATE posts SET images = '[]' WHERE images IS NULL");
+
+// Migrations for telegram_messages table
+const tgColumns = db.prepare("PRAGMA table_info(telegram_messages)").all().map((c) => c.name);
+if (!tgColumns.includes('is_adoption_search')) {
+  db.exec("ALTER TABLE telegram_messages ADD COLUMN is_adoption_search INTEGER NOT NULL DEFAULT 0");
+}
 
 const INSERT_POST = db.prepare(`
   INSERT INTO posts (id, source, url, title, description, city, price, images, raw, closed_by, date_closed, first_seen, last_seen)
@@ -172,4 +192,59 @@ export function countPosts(source = null) {
   return db.prepare('SELECT COUNT(*) AS n FROM posts').get().n;
 }
 
-export { db, DB_PATH };
+const INSERT_TELEGRAM_MSG = db.prepare(`
+  INSERT INTO telegram_messages (id, channel, message_id, text, date, first_seen, last_seen)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    text = excluded.text,
+    last_seen = excluded.last_seen
+`);
+
+const FIND_TELEGRAM_BY_ID = db.prepare(`
+  SELECT id FROM telegram_messages WHERE id = ?
+`);
+
+function upsertTelegramMessage(msg) {
+  const now = new Date().toISOString();
+  const existing = FIND_TELEGRAM_BY_ID.get(msg.id);
+
+  INSERT_TELEGRAM_MSG.run(
+    msg.id,
+    msg.channel,
+    msg.messageId,
+    msg.text ?? null,
+    msg.date ?? now,
+    now,
+    now
+  );
+
+  if (existing) return { inserted: false, duplicate: true, id: existing.id };
+  return { inserted: true, duplicate: false, id: msg.id };
+}
+
+function listTelegramMessagesForEnrichment(channel = null) {
+  if (channel) {
+    return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search = 0 AND channel = ?").all(channel);
+  }
+  return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search = 0").all();
+}
+
+function markTelegramAdoptionSearch(id, value) {
+  db.prepare("UPDATE telegram_messages SET is_adoption_search = ? WHERE id = ?").run(value ? 1 : 0, id);
+}
+
+function countTelegramMessages(channel = null) {
+  if (channel) {
+    return db.prepare('SELECT COUNT(*) AS n FROM telegram_messages WHERE channel = ?').get(channel).n;
+  }
+  return db.prepare('SELECT COUNT(*) AS n FROM telegram_messages').get().n;
+}
+
+export {
+  db,
+  DB_PATH,
+  upsertTelegramMessage,
+  listTelegramMessagesForEnrichment,
+  markTelegramAdoptionSearch,
+  countTelegramMessages,
+};
