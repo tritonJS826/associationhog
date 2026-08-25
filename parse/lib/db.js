@@ -39,6 +39,7 @@ db.exec(`
     channel          TEXT NOT NULL,
     message_id       INTEGER NOT NULL,
     text             TEXT,
+    images           TEXT NOT NULL DEFAULT '[]',
     date             TEXT NOT NULL,
     first_seen       TEXT NOT NULL,
     last_seen        TEXT NOT NULL,
@@ -89,6 +90,9 @@ db.exec("UPDATE posts SET images = '[]' WHERE images IS NULL");
 const tgColumns = db.prepare("PRAGMA table_info(telegram_messages)").all().map((c) => c.name);
 if (!tgColumns.includes('is_adoption_search')) {
   db.exec("ALTER TABLE telegram_messages ADD COLUMN is_adoption_search INTEGER NOT NULL DEFAULT 0");
+}
+if (!tgColumns.includes('images')) {
+  db.exec("ALTER TABLE telegram_messages ADD COLUMN images TEXT NOT NULL DEFAULT '[]'");
 }
 
 const INSERT_POST = db.prepare(`
@@ -193,10 +197,11 @@ export function countPosts(source = null) {
 }
 
 const INSERT_TELEGRAM_MSG = db.prepare(`
-  INSERT INTO telegram_messages (id, channel, message_id, text, date, first_seen, last_seen)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO telegram_messages (id, channel, message_id, text, images, date, first_seen, last_seen)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     text = excluded.text,
+    images = excluded.images,
     last_seen = excluded.last_seen
 `);
 
@@ -213,6 +218,7 @@ function upsertTelegramMessage(msg) {
     msg.channel,
     msg.messageId,
     msg.text ?? null,
+    msg.images ?? '[]',
     msg.date ?? now,
     now,
     now

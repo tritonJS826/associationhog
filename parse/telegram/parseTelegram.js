@@ -2,11 +2,12 @@ import { scrapeTelegramChannel } from '../lib/telegram.js';
 import { countTelegramMessages, DB_PATH } from '../lib/db.js';
 
 function parseArgs(argv) {
-  const args = { channel: null, apiId: null, apiHash: null, maxMessages: Infinity };
+  const args = { channel: null, topic: null, apiId: null, apiHash: null, maxMessages: Infinity };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--channel' && argv[i + 1]) args.channel = argv[++i];
+    else if (arg === '--topic' && argv[i + 1]) args.topic = parseInt(argv[++i], 10);
     else if (arg === '--api-id' && argv[i + 1]) args.apiId = parseInt(argv[++i], 10);
     else if (arg === '--api-hash' && argv[i + 1]) args.apiHash = argv[++i];
     else if (arg === '--max-messages' && argv[i + 1]) args.maxMessages = parseInt(argv[++i], 10);
@@ -31,6 +32,7 @@ if (!args.apiId || !args.apiHash) {
 }
 
 console.log(`[telegram] channel: ${args.channel}`);
+console.log(`[telegram] topic: ${args.topic ?? '-'}`);
 console.log(`[telegram] max-messages: ${args.maxMessages}`);
 
 try {

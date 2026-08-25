@@ -4,10 +4,10 @@
   "description": "Scrape internet resources and store posts into a local SQLite database",
   "type": "module",
   "scripts": {
-    "parse:halooglasi": "node parse/halooglasi/index.js",
-    "parse:kupujemprodajem": "node parse/kupujemprodajem/index.js",
-    "parse:telegram": "node parse/telegram/index.js",
-    "enrich:telegram": "node parse/telegram/enrich.js",
+    "parse:halooglasi": "node parse/halooglasi/parseHaloOglasi.js",
+    "parse:kupujemprodajem": "node parse/kupujemprodajem/parseKupujemProdajem.js",
+    "parse:telegram": "node parse/telegram/parseTelegram.js",
+    "enrich:telegram": "node parse/telegram/enrichTelegram.js",
     "db:init": "node parse/lib/db.js"
   },
   "engines": {

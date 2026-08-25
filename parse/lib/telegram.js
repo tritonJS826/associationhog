@@ -21,7 +21,10 @@ async function getClient(apiId, apiHash) {
 
   await client.start({
     phoneNumber: async () => await prompt('Phone (+1234567890): '),
-    password: async () => await prompt('2FA password (empty if none): ') || '',
+    password: async (hint) => {
+      const msg = hint ? `2FA password (hint: ${hint}): ` : '2FA password: ';
+      return await prompt(msg);
+    },
     phoneCode: async () => await prompt('Code from Telegram: '),
     onError: (err) => console.error('[telegram] auth error:', err),
   });
@@ -37,6 +40,7 @@ async function getClient(apiId, apiHash) {
 
 export async function scrapeTelegramChannel({
   channel,
+  topic,
   apiId,
   apiHash,
   maxMessages = Infinity,
@@ -51,19 +55,31 @@ export async function scrapeTelegramChannel({
     let saved = 0;
     let duplicates = 0;
 
+    const params = { limit: 100, offsetId };
+    if (topic) {
+      params.replyTo = topic;
+      console.log(`[telegram] filtering topic: ${topic}`);
+    }
+
     while (saved < maxMessages) {
-      const messages = await client.getMessages(entity, { limit: 100, offsetId });
+      const messages = await client.getMessages(entity, params);
 
       if (!messages || messages.length === 0) break;
 
       for (const msg of messages) {
         if (!msg.message || msg.message.trim().length === 0) continue;
 
+        const images = [];
+        if (msg.photo) {
+          images.push(`https://t.me/${channel}/${msg.id}`);
+        }
+
         const dbResult = upsertTelegramMessage({
-          id: `${channel}/${msg.id}`,
+          id: topic ? `${channel}/${topic}/${msg.id}` : `${channel}/${msg.id}`,
           channel,
           messageId: msg.id,
           text: msg.message.trim(),
+          images: JSON.stringify(images),
           date: new Date(msg.date * 1000).toISOString(),
         });
         if (dbResult.duplicate) duplicates++;
@@ -74,7 +90,7 @@ export async function scrapeTelegramChannel({
 
       if (saved >= maxMessages || messages.length < 100) break;
 
-      offsetId = messages[messages.length - 1].id;
+      params.offsetId = messages[messages.length - 1].id;
     }
 
     console.log(`[telegram] done. saved: ${saved}, duplicates: ${duplicates}`);
