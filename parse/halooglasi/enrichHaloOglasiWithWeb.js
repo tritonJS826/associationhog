@@ -14,23 +14,57 @@ function stripHtml(str) {
     .trim();
 }
 
+function extractCurrentClassified(html) {
+  const marker = 'QuidditaEnvironment.CurrentClassified=';
+  const start = html.indexOf(marker);
+  if (start === -1) return null;
+
+  const open = html.indexOf('{', start);
+  let depth = 0;
+  let inString = false;
+  let esc = false;
+  for (let i = open; i < html.length; i++) {
+    const c = html[i];
+    if (inString) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inString = false;
+    } else if (c === '"') {
+      inString = true;
+    } else if (c === '{') {
+      depth++;
+    } else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        return JSON.parse(html.slice(open, i + 1));
+      }
+    }
+  }
+  return null;
+}
+
 function extractDetailData(html) {
-  const result = { description: null, images: [] };
+  const result = { description: null, images: [], title: null };
 
-  const metaDesc = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
-  if (metaDesc) result.description = stripHtml(metaDesc[1]);
+  const classified = extractCurrentClassified(html);
+  if (classified) {
+    const textHtml = classified.TextHtml || classified.Text;
+    if (textHtml) result.description = stripHtml(textHtml);
+    if (classified.Title) result.title = stripHtml(classified.Title);
 
-  const descMatch = html.match(/data-field-name="opis_s"\s+data-field-value="([^"]*)"/i);
-  if (descMatch) {
-    const val = descMatch[1];
-    if (val && !/^\s*$/.test(val)) {
-      result.description = stripHtml(val);
+    if (Array.isArray(classified.ImageURLs)) {
+      for (const path of classified.ImageURLs) {
+        if (!path) continue;
+        result.images.push(
+          path.startsWith('http') ? path : `https://img.halooglasi.com${path}`
+        );
+      }
     }
   }
 
-  const imgMatches = html.matchAll(/<img\s+[^>]*src="(https:\/\/slike\.halooglasi\.com\/[^"]+)"[^>]*>/gi);
-  for (const m of imgMatches) {
-    result.images.push(m[1]);
+  if (!result.description) {
+    const metaDesc = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    if (metaDesc) result.description = stripHtml(metaDesc[1]);
   }
 
   return result;
@@ -74,6 +108,7 @@ try {
         const detail = extractDetailData(res.text);
 
         enrichPost(post.id, {
+          title: detail.title || undefined,
           description: detail.description || undefined,
           images: detail.images.length ? JSON.stringify(detail.images) : undefined,
         });

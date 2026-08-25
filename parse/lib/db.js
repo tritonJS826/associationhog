@@ -172,27 +172,31 @@ export function markClosed(id, closedBy, dateClosed = null) {
   MARK_CLOSED.run(closedBy ?? 'not_closed_yet', dateClosed ?? null, now, id);
 }
 
-const ENRICH_POST = db.prepare(`
-  UPDATE posts
-  SET title = ?,
-      description = ?,
-      price = ?,
-      images = ?,
-      details_fetched = 1,
-      last_seen = ?
-  WHERE id = ?
-`);
-
 export function enrichPost(id, { title, description, price, images } = {}) {
   const now = new Date().toISOString();
-  ENRICH_POST.run(
-    title ?? null,
-    description ?? null,
-    price ?? null,
-    images ?? null,
-    now,
-    id
-  );
+
+  const sets = ['details_fetched = 1', 'last_seen = ?'];
+  const params = [now];
+
+  if (title !== undefined && title !== null) {
+    sets.push('title = ?');
+    params.push(title);
+  }
+  if (description !== undefined && description !== null) {
+    sets.push('description = ?');
+    params.push(description);
+  }
+  if (price !== undefined && price !== null) {
+    sets.push('price = ?');
+    params.push(price);
+  }
+  if (images !== undefined && images !== null) {
+    sets.push('images = ?');
+    params.push(images);
+  }
+
+  params.push(id);
+  db.prepare(`UPDATE posts SET ${sets.join(', ')} WHERE id = ?`).run(...params);
 }
 
 export function listOpenPosts(source = null) {
