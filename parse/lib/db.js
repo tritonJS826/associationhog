@@ -113,7 +113,7 @@ const INSERT_POST = db.prepare(`
   ON CONFLICT(id) DO UPDATE SET
     url = excluded.url,
     title = excluded.title,
-    description = excluded.description,
+    description = CASE WHEN posts.details_fetched = 1 THEN posts.description ELSE excluded.description END,
     city = excluded.city,
     price = excluded.price,
     images = excluded.images,
@@ -166,10 +166,10 @@ export function markClosed(id, closedBy, dateClosed = null) {
 
 const ENRICH_POST = db.prepare(`
   UPDATE posts
-  SET title = COALESCE(?, title),
-      description = COALESCE(?, description),
-      price = COALESCE(?, price),
-      images = COALESCE(?, images),
+  SET title = ?,
+      description = ?,
+      price = ?,
+      images = ?,
       details_fetched = 1,
       last_seen = ?
   WHERE id = ?

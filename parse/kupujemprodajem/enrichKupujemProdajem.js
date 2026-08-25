@@ -101,7 +101,7 @@ try {
 
           enrichPost(post.id, {
             title: d.name || undefined,
-            description: desc || undefined,
+            description: desc,
             price: d.priceText || d.priceDisplay || undefined,
             images: images.length ? JSON.stringify([...new Set(images)]) : undefined,
           });
@@ -111,7 +111,7 @@ try {
           const desc = stripHtml(detail.description);
           enrichPost(post.id, {
             title: detail.title || undefined,
-            description: desc || undefined,
+            description: desc,
             price: detail.price || undefined,
             images: detail.images?.length ? JSON.stringify(detail.images) : undefined,
           });
