@@ -3,15 +3,6 @@
 A custom Node.js parser/aggregator that scrapes internet resources and stores
 posts into a local SQLite database.
 
-## Parsers
-
-- `parse/halooglasi/parseHaloOglasi.js` — parses halooglasi.com listing pages.
-- `parse/kupujemprodajem/parseKupujemProdajem.js` — parses kupujemprodajem.com listing pages.
-
-Both write into the same `posts` table, so the project works as an aggregator
-across multiple sources. The target URL is always passed as a parameter (there
-are no hardcoded default resources).
-
 ## Requirements
 
 - Node.js >= 22 (uses built-in `node:sqlite`)
@@ -27,20 +18,16 @@ npm install
 # 2. Initialize the SQLite database (creates data/associationhog.sqlite)
 make init
 
-# 3. Parse a resource by passing its URL
-make parse-halooglasi URL="https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
-make parse-kupujemprodajem URL="https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
+# 3. Parse a resource by passing its URL (short description, previews)
+make parse
+
+# 4. Enrich parsed data with specif data from posts 
+make enrich-with-web
+
+# 5. Enrich data with llm 
+make enrich-with-llm 
 ```
 
-## Usage
-
-```bash
-# halooglasi
-node parse/halooglasi/parseHaloOglasi.js --url "https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
-
-# kupujemprodajem
-node parse/kupujemprodajem/parseKupujemProdajem.js --url "https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
-```
 
 ### Common options
 

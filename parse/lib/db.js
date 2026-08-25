@@ -28,6 +28,8 @@ db.exec(`
     closed_by                 TEXT NOT NULL DEFAULT 'not_closed_yet',
     date_closed               TEXT,
     details_fetched           INTEGER NOT NULL DEFAULT 0,
+    age                       TEXT,
+    breed                     TEXT,
     first_seen                TEXT NOT NULL,
     last_seen                 TEXT NOT NULL
   );
@@ -63,6 +65,12 @@ if (!columns.includes('date_closed')) {
 }
 if (!columns.includes('details_fetched')) {
   db.exec('ALTER TABLE posts ADD COLUMN details_fetched INTEGER NOT NULL DEFAULT 0');
+}
+if (!columns.includes('age')) {
+  db.exec('ALTER TABLE posts ADD COLUMN age TEXT');
+}
+if (!columns.includes('breed')) {
+  db.exec('ALTER TABLE posts ADD COLUMN breed TEXT');
 }
 
 // Migrate from the old boolean columns (is_closed_by_ad_maker / date_closed_by_ad_maker).
@@ -206,6 +214,27 @@ export function countPosts(source = null) {
     return db.prepare('SELECT COUNT(*) AS n FROM posts WHERE source = ?').get(source).n;
   }
   return db.prepare('SELECT COUNT(*) AS n FROM posts').get().n;
+}
+
+export function listPostsForLlmEnrichment(source = null) {
+  if (source) {
+    return db.prepare("SELECT id, source, url, title, description FROM posts WHERE closed_by = 'not_closed_yet' AND details_fetched = 1 AND (age IS NULL OR breed IS NULL) AND source = ?").all(source);
+  }
+  return db.prepare("SELECT id, source, url, title, description FROM posts WHERE closed_by = 'not_closed_yet' AND details_fetched = 1 AND (age IS NULL OR breed IS NULL)").all();
+}
+
+const MARK_POST_LLM = db.prepare(`
+  UPDATE posts
+  SET age = ?, breed = ?
+  WHERE id = ?
+`);
+
+export function markPostLlmEnrichment(id, { age, breed } = {}) {
+  MARK_POST_LLM.run(
+    age ?? null,
+    breed ?? null,
+    id
+  );
 }
 
 const INSERT_TELEGRAM_MSG = db.prepare(`

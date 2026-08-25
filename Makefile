@@ -1,4 +1,4 @@
-.PHONY: init parse parse-halooglasi parse-kupujemprodajem parse-telegram enrich-telegram recheck sql-overview clean
+.PHONY: init parse parse-halooglasi parse-kupujemprodajem parse-telegram enrich recheck recheck-halooglasi recheck-kupujemprodajem sql-overview clean
 
 MAKEFLAGS += -j
 
@@ -31,14 +31,22 @@ parse-kupujemprodajem:
 parse-telegram:
 	@. ./.env 2>/dev/null; export TELEGRAM_API_ID TELEGRAM_API_HASH; node parse/telegram/parseTelegram.js --channel "$(TELEGRAM_CHANNEL)" --topic "$(TELEGRAM_TOPIC)"
 
-enrich-telegram:
-	@node parse/telegram/enrichTelegram.js --channel "$(TELEGRAM_CHANNEL)"
+recheck: recheck-halooglasi recheck-kupujemprodajem
 
-recheck:
-	MAKEFLAGS= node parse/recheckHaloOglasiKupujemProdajem.js
+recheck-halooglasi:
+	@node parse/halooglasi/recheckHaloOglasi.js
+
+recheck-kupujemprodajem:
+	@node parse/kupujemprodajem/recheckKupujemProdajem.js
 
 enrich:
-	@node parse/kupujemprodajem/enrichKupujemProdajem.js --source kupujemprodajem
+	@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-psi
+	@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-macke
+	@node parse/kupujemprodajem/enrichKupujemProdajemWithWeb.js --source kupujemprodajem
+	@node parse/telegram/enrichTelegramWithLlm.js --channel "$(TELEGRAM_CHANNEL)"
+	@node parse/halooglasi/enrichHaloOglasiWithLlm.js --source halooglasi-psi
+	@node parse/halooglasi/enrichHaloOglasiWithLlm.js --source halooglasi-macke
+	@node parse/kupujemprodajem/enrichKupujemProdajemWithLlm.js --source kupujemprodajem
 
 sql-overview:
 	sqlite3 $(DB) < sqliteScripts/overview.sql

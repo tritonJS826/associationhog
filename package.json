@@ -7,7 +7,13 @@
     "parse:halooglasi": "node parse/halooglasi/parseHaloOglasi.js",
     "parse:kupujemprodajem": "node parse/kupujemprodajem/parseKupujemProdajem.js",
     "parse:telegram": "node parse/telegram/parseTelegram.js",
-    "enrich:telegram": "node parse/telegram/enrichTelegram.js",
+    "enrich:telegram:llm": "node parse/telegram/enrichTelegramWithLlm.js",
+    "enrich:halooglasi:web": "node parse/halooglasi/enrichHaloOglasiWithWeb.js",
+    "enrich:halooglasi:llm": "node parse/halooglasi/enrichHaloOglasiWithLlm.js",
+    "enrich:kupujemprodajem:web": "node parse/kupujemprodajem/enrichKupujemProdajemWithWeb.js",
+    "enrich:kupujemprodajem:llm": "node parse/kupujemprodajem/enrichKupujemProdajemWithLlm.js",
+    "recheck:halooglasi": "node parse/halooglasi/recheckHaloOglasi.js",
+    "recheck:kupujemprodajem": "node parse/kupujemprodajem/recheckKupujemProdajem.js",
     "db:init": "node parse/lib/db.js"
   },
   "engines": {
