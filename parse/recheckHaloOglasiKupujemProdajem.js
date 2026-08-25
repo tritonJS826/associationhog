@@ -3,14 +3,29 @@ import { fetchHtml, closeBrowser, delay } from './lib/fetch.js';
 import { classifyClose, toDateOnly, todayDate } from './lib/close.js';
 
 function parseArgs(argv) {
-  const args = { source: null, limit: Infinity, delayMs: 2000 };
+  const args = { source: null, limit: Infinity, delayMs: 2000, logEvery: 25 };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--source' && argv[i + 1]) args.source = argv[++i];
     else if (arg === '--limit' && argv[i + 1]) args.limit = parseInt(argv[++i], 10);
     else if (arg === '--delay' && argv[i + 1]) args.delayMs = parseInt(argv[++i], 10);
+    else if (arg === '--log-every' && argv[i + 1]) args.logEvery = parseInt(argv[++i], 10);
   }
   return args;
+}
+
+function makeProgressLogger(source, total, logEvery) {
+  let done = 0;
+  const start = Date.now();
+  return (closed) => {
+    done++;
+    if (total === 0 || done % logEvery === 0 || done === total) {
+      const elapsed = ((Date.now() - start) / 1000).toFixed(0);
+      const pct = total ? ((done / total) * 100).toFixed(0) : '100';
+      const rate = elapsed > 0 ? (done / elapsed).toFixed(2) : '-';
+      console.log(`[recheck] ${source}: ${done}/${total} (${pct}%, ${elapsed}s elapsed, ${rate}/s, closed=${closed})`);
+    }
+  };
 }
 
 function detectHaloOglasiClose(html) {
@@ -33,13 +48,14 @@ function detectHaloOglasiClose(html) {
   return { closed: true, closedBy, date: todayDate() };
 }
 
-async function recheckKupujemProdajem(posts, delayMs) {
+async function recheckKupujemProdajem(posts, delayMs, logEvery) {
   const puppeteerExtra = (await import('puppeteer-extra')).default;
   const { default: StealthPlugin } = await import('puppeteer-extra-plugin-stealth');
   puppeteerExtra.use(StealthPlugin());
 
   const browser = await puppeteerExtra.launch({ headless: true, args: ['--no-sandbox'] });
   let closed = 0;
+  const progress = makeProgressLogger('kupujemprodajem', posts.length, logEvery);
 
   try {
     const page = await browser.newPage();
@@ -48,6 +64,7 @@ async function recheckKupujemProdajem(posts, delayMs) {
     for (const post of posts) {
       const adId = post.id;
       try {
+        console.log(`[recheck] checking ${adId}: ${post.url}`);
         await page.goto(post.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForSelector('h1', { timeout: 15000 }).catch(() => {});
         await new Promise(r => setTimeout(r, delayMs));
@@ -76,6 +93,7 @@ async function recheckKupujemProdajem(posts, delayMs) {
       } catch (err) {
         console.warn(`  [recheck] skip ${post.id}: ${err.message}`);
       }
+      progress(closed);
     }
   } finally {
     await browser.close();
@@ -84,10 +102,12 @@ async function recheckKupujemProdajem(posts, delayMs) {
   return closed;
 }
 
-async function recheckHaloOglasi(posts, delayMs) {
+async function recheckHaloOglasi(posts, delayMs, logEvery) {
   let closed = 0;
+  const progress = makeProgressLogger('halooglasi', posts.length, logEvery);
   for (const post of posts) {
     try {
+      console.log(`[recheck] checking ${post.id}: ${post.url}`);
       const res = await fetchHtml(post.url);
       const detected = detectHaloOglasiClose(res.text);
       if (detected.closed) {
@@ -99,6 +119,7 @@ async function recheckHaloOglasi(posts, delayMs) {
       console.warn(`  [recheck] skip ${post.id}: ${err.message}`);
     }
     await delay(delayMs);
+    progress(closed);
   }
   return closed;
 }
@@ -116,12 +137,14 @@ const kpPosts = limit === Infinity ? kp : kp.slice(0, limit);
 const hoPosts = limit === Infinity ? ho : ho.slice(0, limit);
 
 let total = 0;
+console.log(`[recheck] checking ${hoPosts.length} halooglasi posts${args.source ? ' (source=' + args.source + ')' : ''}...`);
 if (hoPosts.length) {
-  total += await recheckHaloOglasi(hoPosts, args.delayMs);
+  total += await recheckHaloOglasi(hoPosts, args.delayMs, args.logEvery);
   await closeBrowser();
 }
+console.log(`[recheck] checking ${kpPosts.length} kupujemprodajem posts${args.source ? ' (source=' + args.source + ')' : ''}...`);
 if (kpPosts.length) {
-  total += await recheckKupujemProdajem(kpPosts, args.delayMs);
+  total += await recheckKupujemProdajem(kpPosts, args.delayMs, args.logEvery);
 }
 
 console.log(`[recheck] done. closed: ${total} posts in ${DB_PATH}`);

@@ -35,7 +35,7 @@ enrich-telegram:
 	@node parse/telegram/enrichTelegram.js --channel "$(TELEGRAM_CHANNEL)"
 
 recheck:
-	@node parse/recheckHaloOglasiKupujemProdajem.js
+	MAKEFLAGS= node parse/recheckHaloOglasiKupujemProdajem.js
 
 enrich:
 	@node parse/kupujemprodajem/enrichKupujemProdajem.js --source kupujemprodajem

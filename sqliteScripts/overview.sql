@@ -10,18 +10,14 @@
 SELECT
     source                                       AS resource,
     COUNT(*)                                     AS total_posts,
-    COUNT(DISTINCT city)                         AS distinct_cities,
-    MIN(first_seen)                              AS first_seen,
-    MAX(last_seen)                               AS last_seen
+    COUNT(DISTINCT city)                         AS distinct_cities
 FROM posts
 GROUP BY source
 UNION ALL
 SELECT
     'telegram:' || channel                       AS resource,
     COUNT(*)                                     AS total_posts,
-    COUNT(DISTINCT city)                         AS distinct_cities,
-    MIN(first_seen)                              AS first_seen,
-    MAX(last_seen)                               AS last_seen
+    COUNT(DISTINCT city)                         AS distinct_cities
 FROM telegram_messages
 WHERE is_adoption_search = 1
 GROUP BY channel

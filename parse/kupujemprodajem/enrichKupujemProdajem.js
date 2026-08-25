@@ -59,6 +59,7 @@ try {
 
     for (let attempt = 1; attempt <= args.retries && !success; attempt++) {
       try {
+        console.log(`[enrich] checking ${adId}: ${post.url}`);
         await page.goto(post.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForSelector('h1', { timeout: 15000 }).catch(() => {});
         await new Promise((r) => setTimeout(r, 3000));

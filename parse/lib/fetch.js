@@ -34,7 +34,7 @@ export async function fetchHtml(url, { retries = 4, delayMs = 2000, timeoutMs = 
     try {
       const b = await getBrowser();
       p = await b.newPage();
-      await p.goto(url, { waitUntil: 'networkidle2', timeout: timeoutMs });
+      await p.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
       const resolved = await waitForCloudflare(p, timeoutMs);
       if (!resolved) {
         throw new Error(`Cloudflare challenge not resolved for ${url}`);

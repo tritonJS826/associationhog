@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# This script is for automatical parsing. Used by toggle toggle_automatically_launch_parse_and_recheck.sh 
+#
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
