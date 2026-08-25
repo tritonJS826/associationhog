@@ -43,7 +43,10 @@ db.exec(`
     date             TEXT NOT NULL,
     first_seen       TEXT NOT NULL,
     last_seen        TEXT NOT NULL,
-is_adoption_search INTEGER
+is_adoption_search INTEGER,
+    age              TEXT,
+    breed            TEXT,
+    city             TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_telegram_channel ON telegram_messages (channel);
@@ -90,6 +93,15 @@ db.exec("UPDATE posts SET images = '[]' WHERE images IS NULL");
 const tgColumns = db.prepare("PRAGMA table_info(telegram_messages)").all().map((c) => c.name);
 if (!tgColumns.includes('is_adoption_search')) {
   db.exec("ALTER TABLE telegram_messages ADD COLUMN is_adoption_search INTEGER");
+}
+if (!tgColumns.includes('age')) {
+  db.exec('ALTER TABLE telegram_messages ADD COLUMN age TEXT');
+}
+if (!tgColumns.includes('breed')) {
+  db.exec('ALTER TABLE telegram_messages ADD COLUMN breed TEXT');
+}
+if (!tgColumns.includes('city')) {
+  db.exec('ALTER TABLE telegram_messages ADD COLUMN city TEXT');
 }
 if (!tgColumns.includes('images')) {
   db.exec("ALTER TABLE telegram_messages ADD COLUMN images TEXT NOT NULL DEFAULT '[]'");
@@ -235,8 +247,20 @@ function listTelegramMessagesForEnrichment(channel = null) {
   return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search IS NULL").all();
 }
 
-function markTelegramAdoptionSearch(id, value) {
-  db.prepare("UPDATE telegram_messages SET is_adoption_search = ? WHERE id = ?").run(value ? 1 : 0, id);
+const MARK_TELEGRAM_ENRICHMENT = db.prepare(`
+  UPDATE telegram_messages
+  SET is_adoption_search = ?, age = ?, breed = ?, city = ?
+  WHERE id = ?
+`);
+
+function markTelegramEnrichment(id, { isAdoptionSearch, age, breed, city } = {}) {
+  MARK_TELEGRAM_ENRICHMENT.run(
+    isAdoptionSearch ? 1 : 0,
+    age ?? null,
+    breed ?? null,
+    city ?? null,
+    id
+  );
 }
 
 function countTelegramMessages(channel = null) {
@@ -251,6 +275,6 @@ export {
   DB_PATH,
   upsertTelegramMessage,
   listTelegramMessagesForEnrichment,
-  markTelegramAdoptionSearch,
+  markTelegramEnrichment,
   countTelegramMessages,
 };

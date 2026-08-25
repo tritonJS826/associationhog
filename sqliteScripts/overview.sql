@@ -5,7 +5,7 @@
 .mode column
 
 .print ================================================
-.print Total records by resource (source)
+.print Total records by resource
 .print ================================================
 SELECT
     source                                       AS resource,
@@ -15,6 +15,16 @@ SELECT
     MAX(last_seen)                               AS last_seen
 FROM posts
 GROUP BY source
+UNION ALL
+SELECT
+    'telegram:' || channel                       AS resource,
+    COUNT(*)                                     AS total_posts,
+    COUNT(DISTINCT city)                         AS distinct_cities,
+    MIN(first_seen)                              AS first_seen,
+    MAX(last_seen)                               AS last_seen
+FROM telegram_messages
+WHERE is_adoption_search = 1
+GROUP BY channel
 ORDER BY total_posts DESC;
 
 .print
@@ -22,9 +32,8 @@ ORDER BY total_posts DESC;
 .print Total records overall
 .print ================================================
 SELECT
-    COUNT(*)                                     AS total_posts,
-    COUNT(DISTINCT source)                       AS resources
-FROM posts;
+    (SELECT COUNT(*) FROM posts) + (SELECT COUNT(*) FROM telegram_messages WHERE is_adoption_search = 1) AS total_posts,
+    (SELECT COUNT(DISTINCT source) FROM posts) + (SELECT COUNT(DISTINCT channel) FROM telegram_messages WHERE is_adoption_search = 1) AS resources;
 
 .print
 .print ================================================
@@ -33,8 +42,25 @@ FROM posts;
 SELECT
     city,
     COUNT(*) AS total_posts
-FROM posts
-WHERE city IS NOT NULL AND TRIM(city) != ''
+FROM (
+    SELECT city FROM posts WHERE city IS NOT NULL AND TRIM(city) != ''
+    UNION ALL
+    SELECT city FROM telegram_messages WHERE is_adoption_search = 1 AND city IS NOT NULL AND TRIM(city) != '' AND city != 'no-info'
+)
 GROUP BY city
 ORDER BY total_posts DESC
 LIMIT 15;
+
+.print
+.print ================================================
+.print Top cities by telegram channel
+.print ================================================
+SELECT
+    'telegram:' || channel                          AS resource,
+    city,
+    COUNT(*)                                        AS total_posts
+FROM telegram_messages
+WHERE is_adoption_search = 1
+  AND city IS NOT NULL AND TRIM(city) != '' AND city != 'no-info'
+GROUP BY channel, city
+ORDER BY resource, total_posts DESC;
