@@ -1,5 +1,5 @@
-import { scrapeKupujemProdajem } from './lib/kupujemprodajem.js';
-import { countPosts, DB_PATH } from './lib/db.js';
+import { scrapeKupujemProdajem } from '../lib/kupujemprodajem.js';
+import { countPosts, DB_PATH } from '../lib/db.js';
 
 function parseArgs(argv) {
   const args = {

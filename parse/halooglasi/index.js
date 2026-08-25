@@ -1,6 +1,6 @@
-import { scrapeHaloOglasi } from './lib/halooglasi.js';
-import { countPosts, DB_PATH } from './lib/db.js';
-import { closeBrowser } from './lib/fetch.js';
+import { scrapeHaloOglasi } from '../lib/halooglasi.js';
+import { countPosts, DB_PATH } from '../lib/db.js';
+import { closeBrowser } from '../lib/fetch.js';
 
 function parseArgs(argv) {
   const args = {

@@ -1,5 +1,5 @@
-import { listPostsForEnrichment, enrichPost, DB_PATH, countPosts } from './lib/db.js';
-import { classifyClose, toDateOnly } from './lib/close.js';
+import { listPostsForEnrichment, enrichPost, DB_PATH, countPosts } from '../lib/db.js';
+import { classifyClose, toDateOnly } from '../lib/close.js';
 
 const BASE_URL = 'https://www.kupujemprodajem.com';
 

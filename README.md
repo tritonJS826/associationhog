@@ -5,8 +5,8 @@ posts into a local SQLite database.
 
 ## Parsers
 
-- `parse/halooglasi.js` — parses halooglasi.com listing pages.
-- `parse/kupujemprodajem.js` — parses kupujemprodajem.com listing pages.
+- `parse/halooglasi/index.js` — parses halooglasi.com listing pages.
+- `parse/kupujemprodajem/index.js` — parses kupujemprodajem.com listing pages.
 
 Both write into the same `posts` table, so the project works as an aggregator
 across multiple sources. The target URL is always passed as a parameter (there
@@ -36,10 +36,10 @@ make parse-kupujemprodajem URL="https://www.kupujemprodajem.com/kucni-ljubimci/u
 
 ```bash
 # halooglasi
-node parse/halooglasi.js --url "https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
+node parse/halooglasi/index.js --url "https://www.halooglasi.com/kucni-ljubimci/psi?poklanjam_b=true"
 
 # kupujemprodajem
-node parse/kupujemprodajem.js --url "https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
+node parse/kupujemprodajem/index.js --url "https://www.kupujemprodajem.com/kucni-ljubimci/udomljavanje-zivotinja/grupa/14/1984/1"
 ```
 
 ### Common options
@@ -59,8 +59,8 @@ kupujemprodajem only:
 
 ```bash
 # Test on a single page
-node parse/halooglasi.js --url "..." --max-pages 1
-node parse/kupujemprodajem.js --url "..." --max-pages 1
+node parse/halooglasi/index.js --url "..." --max-pages 1
+node parse/kupujemprodajem/index.js --url "..." --max-pages 1
 ```
 
 The database is stored at `data/associationhog.sqlite` (table `posts`).
@@ -78,7 +78,7 @@ The database is stored at `data/associationhog.sqlite` (table `posts`).
 | `make sql-overview` | Prints a summary of stored posts. | To inspect the data. |
 | `make clean` | Deletes the SQLite database. | To reset everything and start fresh. |
 
-The underlying Node scripts are `parse/halooglasi.js`, `parse/kupujemprodajem.js`
+The underlying Node scripts are `parse/halooglasi/index.js`, `parse/kupujemprodajem/index.js`
 and `parse/recheck.js`. `make recheck` passes no arguments, so to limit it during
 development run the script directly:
 

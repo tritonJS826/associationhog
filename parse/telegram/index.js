@@ -1,5 +1,5 @@
-import { scrapeTelegramChannel } from './lib/telegram.js';
-import { countTelegramMessages, DB_PATH } from './lib/db.js';
+import { scrapeTelegramChannel } from '../lib/telegram.js';
+import { countTelegramMessages, DB_PATH } from '../lib/db.js';
 
 function parseArgs(argv) {
   const args = { channel: null, apiId: null, apiHash: null, maxMessages: Infinity };

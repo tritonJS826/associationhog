@@ -1,4 +1,4 @@
-import { listTelegramMessagesForEnrichment, markTelegramAdoptionSearch, countTelegramMessages, DB_PATH } from './lib/db.js';
+import { listTelegramMessagesForEnrichment, markTelegramAdoptionSearch, countTelegramMessages, DB_PATH } from '../lib/db.js';
 
 function parseArgs(argv) {
   const args = { channel: null, limit: Infinity, ollamaModel: 'gemma4-e2b', ollamaUrl: 'http://localhost:11434' };
