@@ -33,7 +33,7 @@ SELECT
 
 .print
 .print ================================================
-.print Top cities across all resources
+.print Top cities across kupukemprodakem & halooglasi resources
 .print ================================================
 SELECT
     city,
