@@ -53,10 +53,10 @@ const args = parseArgs(process.argv.slice(2));
 const posts = listPostsForEnrichment(args.source);
 const toEnrich = args.limit === Infinity ? posts : posts.slice(0, args.limit);
 
-console.log(`[enrich-web-halooglasi] candidates: ${posts.length}, enriching: ${toEnrich.length}, delay: ${args.delayMs}ms`);
+console.log(`[enrich-web-halooglasi-${args.source}] candidates: ${posts.length}, enriching: ${toEnrich.length}, delay: ${args.delayMs}ms`);
 
 if (toEnrich.length === 0) {
-  console.log('[enrich-web-halooglasi] nothing to do');
+  console.log(`[enrich-web-halooglasi-${args-source}] nothing to do`);
   process.exit(0);
 }
 
@@ -69,7 +69,7 @@ try {
 
     for (let attempt = 1; attempt <= args.retries && !success; attempt++) {
       try {
-        console.log(`[enrich-web] checking ${post.id}: ${post.url}`);
+        console.log(`[enrich-web-halooglasi-${args.source}] checking ${post.id}: ${post.url}`);
         const res = await fetchHtml(post.url);
         const detail = extractDetailData(res.text);
 
@@ -81,13 +81,13 @@ try {
         success = true;
       } catch (err) {
         if (attempt === args.retries) {
-          console.warn(`  [enrich-web] ${post.id} failed after ${args.retries} attempts: ${err.message}`);
+          console.warn(`  [enrich-web-halooglasi-${args.source}] ${post.id} failed after ${args.retries} attempts: ${err.message}`);
           enrichPost(post.id, {});
           enriched++;
           success = true;
         } else {
           const backoff = args.delayMs * 2 ** attempt;
-          console.warn(`  [enrich-web] ${post.id} attempt ${attempt}/${args.retries} failed, retrying in ${Math.round(backoff / 1000)}s`);
+          console.warn(`  [enrich-web-halooglasi-${args.source}] ${post.id} attempt ${attempt}/${args.retries} failed, retrying in ${Math.round(backoff / 1000)}s`);
           await new Promise((r) => setTimeout(r, backoff));
         }
       }
@@ -101,4 +101,4 @@ try {
   await closeBrowser();
 }
 
-console.log(`[enrich-web-halooglasi] done. enriched: ${enriched}, failed: ${failed}, total posts: ${countPosts(args.source)} in ${DB_PATH}`);
+console.log(`[enrich-web-halooglasi-${args.source}] done. enriched: ${enriched}, failed: ${failed}, total posts: ${countPosts(args.source)} in ${DB_PATH}`);
