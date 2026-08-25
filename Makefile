@@ -1,4 +1,4 @@
-.PHONY: init parse parse-halooglasi parse-kupujemprodajem parse-telegram enrich recheck recheck-halooglasi recheck-kupujemprodajem sql-overview clean
+.PHONY: init parse parse-halooglasi parse-kupujemprodajem parse-telegram enrich recheck recheck-halooglasi recheck-kupujemprodajem enrich-with-web enrich-with-web-halooglasi enrich-with-web-kupujemprodajem enrich-with-llm sql-overview clean
 
 MAKEFLAGS += -j
 
@@ -39,10 +39,16 @@ recheck-halooglasi:
 recheck-kupujemprodajem:
 	@node parse/kupujemprodajem/recheckKupujemProdajem.js
 
-enrich:
+enrich-with-web: enrich-with-web-halooglasi enrich-with-web-kupujemprodajem
+
+enrich-with-web-halooglasi:
 	@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-psi
 	@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-macke
+
+enrich-with-web-kupujemprodajem:
 	@node parse/kupujemprodajem/enrichKupujemProdajemWithWeb.js --source kupujemprodajem
+
+enrich-with-llm:
 	@node parse/telegram/enrichTelegramWithLlm.js --channel "$(TELEGRAM_CHANNEL)"
 	@node parse/halooglasi/enrichHaloOglasiWithLlm.js --source halooglasi-psi
 	@node parse/halooglasi/enrichHaloOglasiWithLlm.js --source halooglasi-macke
