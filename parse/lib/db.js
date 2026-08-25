@@ -43,7 +43,7 @@ db.exec(`
     date             TEXT NOT NULL,
     first_seen       TEXT NOT NULL,
     last_seen        TEXT NOT NULL,
-    is_adoption_search INTEGER NOT NULL DEFAULT 0
+is_adoption_search INTEGER
   );
 
   CREATE INDEX IF NOT EXISTS idx_telegram_channel ON telegram_messages (channel);
@@ -89,7 +89,7 @@ db.exec("UPDATE posts SET images = '[]' WHERE images IS NULL");
 // Migrations for telegram_messages table
 const tgColumns = db.prepare("PRAGMA table_info(telegram_messages)").all().map((c) => c.name);
 if (!tgColumns.includes('is_adoption_search')) {
-  db.exec("ALTER TABLE telegram_messages ADD COLUMN is_adoption_search INTEGER NOT NULL DEFAULT 0");
+  db.exec("ALTER TABLE telegram_messages ADD COLUMN is_adoption_search INTEGER");
 }
 if (!tgColumns.includes('images')) {
   db.exec("ALTER TABLE telegram_messages ADD COLUMN images TEXT NOT NULL DEFAULT '[]'");
@@ -230,9 +230,9 @@ function upsertTelegramMessage(msg) {
 
 function listTelegramMessagesForEnrichment(channel = null) {
   if (channel) {
-    return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search = 0 AND channel = ?").all(channel);
+    return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search IS NULL AND channel = ?").all(channel);
   }
-  return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search = 0").all();
+  return db.prepare("SELECT id, channel, message_id, text, date FROM telegram_messages WHERE is_adoption_search IS NULL").all();
 }
 
 function markTelegramAdoptionSearch(id, value) {
