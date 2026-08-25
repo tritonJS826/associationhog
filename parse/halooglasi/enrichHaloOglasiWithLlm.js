@@ -1,4 +1,5 @@
 import { listPostsForLlmEnrichment, markPostLlmEnrichment, countPosts, DB_PATH } from '../lib/db.js';
+import { siteAdPrompt } from '../lib/llmPrompts.js';
 
 function parseArgs(argv) {
   const args = { source: null, limit: Infinity, ollamaModel: 'gemma4-14threads:e2b', ollamaUrl: 'http://localhost:11434' };
@@ -25,21 +26,7 @@ if (toEnrich.length === 0) {
   process.exit(0);
 }
 
-const PROMPT = `Ты анализируешь объявления о животных с сайтов объявлений. Определи:
-
-1. Возраст животного — опиши одним словом ("young", "adult"). Если не понятно — верни "no-info".
-2. Породу и тип животного на английском(например: "cat", "dog", "cat:British Shorthair", "dog:sheepdog"). Если не указаны — верни "no-info".
-
-Ответь СТРОГО в формате JSON без лишнего текста:
-{"age": "строка или no-info", "breed": "строка или no-info"}
-
-Заголовок:
-«{{TITLE}}»
-
-Описание:
-«{{DESCRIPTION}}»
-
-JSON-ответ:`;
+const PROMPT = siteAdPrompt();
 
 let enriched = 0;
 let failed = 0;
@@ -54,7 +41,7 @@ for (const post of toEnrich) {
     continue;
   }
 
-  const prompt = PROMPT.replace('{{TITLE}}', (post.title ?? '').slice(0, 1000)).replace('{{DESCRIPTION}}', (post.description ?? '').slice(0, 2000));
+  const prompt = PROMPT.replace('{{TITLE}}', post.title ?? '').replace('{{DESCRIPTION}}', post.description ?? '');
   const body = JSON.stringify({ model: args.ollamaModel, prompt, stream: false, format: 'json' });
 
   try {

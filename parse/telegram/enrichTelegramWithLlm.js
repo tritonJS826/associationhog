@@ -1,4 +1,5 @@
 import { listTelegramMessagesForEnrichment, markTelegramEnrichment, countTelegramMessages, DB_PATH } from '../lib/db.js';
+import { telegramPrompt } from '../lib/llmPrompts.js';
 
 function parseArgs(argv) {
   const args = { channel: null, limit: Infinity, ollamaModel: 'gemma4-14threads:e2b', ollamaUrl: 'http://localhost:11434' };
@@ -25,20 +26,7 @@ if (toEnrich.length === 0) {
   process.exit(0);
 }
 
-const PROMPT = `Ты анализируешь сообщения из Telegram-канала о животных. Определи:
-
-1. Является ли сообщение призывом о помощи для животного, например ПОИСКОМ хозяина (adoption search) — человек хочет отдать кошку, собаку или другое животное в добрые руки.
-2. Возраст животного — опиши одним словом ("young", "adult"). Если не понятно — верни "no-info".
-3. Породу и тип животного на английском(например: "cat", "dog", "cat:British Shorthair", "dog:sheepdog"). Если не указаны — верни "no-info".
-4. Город, где находится животное (на сербском, например: Beograd, Novi Sad, Subotica, Zrenjanin, Niš, Kragujevac, Mladenovac, Pančevo, Kruševac, Čačak, Valjevo, Šabac, Obrenovac, Leskovac, Kraljevo). Если не указан — верни "no-info".
-
-Ответь СТРОГО в формате JSON без лишнего текста:
-{"is_adoption_search": true или false, "age": "строка или no-info", "breed": "строка или no-info", "city": "строка или no-info"}
-
-Сообщение:
-«{{TEXT}}»
-
-JSON-ответ:`;
+const PROMPT = telegramPrompt();
 
 let enriched = 0;
 let failed = 0;
@@ -51,7 +39,7 @@ for (const msg of toEnrich) {
     continue;
   }
 
-  const prompt = PROMPT.replace('{{TEXT}}', msg.text.slice(0, 2000));
+  const prompt = PROMPT.replace('{{TEXT}}', msg.text);
   const body = JSON.stringify({ model: args.ollamaModel, prompt, stream: false, format: 'json' });
 
   try {
