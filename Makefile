@@ -42,7 +42,7 @@ recheck-kupujemprodajem:
 enrich-with-web: enrich-with-web-halooglasi enrich-with-web-kupujemprodajem
 
 enrich-with-web-halooglasi:
-	@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-psi
+	-@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-psi
 	@node parse/halooglasi/enrichHaloOglasiWithWeb.js --source halooglasi-macke
 
 enrich-with-web-kupujemprodajem:
