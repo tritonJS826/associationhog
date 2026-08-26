@@ -8,8 +8,9 @@ posts into a local SQLite database.
 - Node.js >= 22 (uses built-in `node:sqlite`)
 - puppeteer (used by the fetcher to bypass Cloudflare bot checks)
 - make (optional, for convenience scripts)
+- ollama with gemma4-14threads:e2b (served) 
 
-## Installation
+## Installation and first parse
 
 ```bash
 # 1. Install dependencies
@@ -28,6 +29,10 @@ make enrich-with-web
 make enrich-with-llm 
 ```
 
+## Daily usage
+```
+make recheck && make parse && make enrich-with-web && make enrich-with-llm 
+```
 
 ### Common options
 

@@ -90,7 +90,7 @@ const toEnrich = args.limit === Infinity ? posts : posts.slice(0, args.limit);
 console.log(`[enrich-web-halooglasi-${args.source}] candidates: ${posts.length}, enriching: ${toEnrich.length}, delay: ${args.delayMs}ms`);
 
 if (toEnrich.length === 0) {
-  console.log(`[enrich-web-halooglasi-${args-source}] nothing to do`);
+  console.log(`[enrich-web-halooglasi] nothing to do`);
   process.exit(0);
 }
 
