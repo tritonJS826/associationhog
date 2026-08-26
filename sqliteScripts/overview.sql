@@ -33,7 +33,7 @@ SELECT
 
 .print
 .print ================================================
-.print Top cities across kupukemprodakem & halooglasi resources
+.print Cities across all resources
 .print ================================================
 SELECT
     city,
@@ -41,22 +41,8 @@ SELECT
 FROM (
     SELECT city FROM posts WHERE city IS NOT NULL AND TRIM(city) != ''
     UNION ALL
-    SELECT city FROM telegram_messages WHERE is_adoption_search = 1 AND city IS NOT NULL AND TRIM(city) != '' AND city != 'no-info'
+    SELECT city FROM telegram_messages WHERE is_adoption_search = 1 
 )
 GROUP BY city
-ORDER BY total_posts DESC
-LIMIT 15;
+ORDER BY total_posts DESC;
 
-.print
-.print ================================================
-.print Top cities by telegram channel
-.print ================================================
-SELECT
-    'telegram:' || channel                          AS resource,
-    city,
-    COUNT(*)                                        AS total_posts
-FROM telegram_messages
-WHERE is_adoption_search = 1
-  AND city IS NOT NULL AND TRIM(city) != '' AND city != 'no-info'
-GROUP BY channel, city
-ORDER BY resource, total_posts DESC;
