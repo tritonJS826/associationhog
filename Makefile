@@ -1,4 +1,4 @@
-.PHONY: init parse parse-halooglasi parse-kupujemprodajem parse-telegram enrich recheck recheck-halooglasi recheck-kupujemprodajem enrich-with-web enrich-with-web-halooglasi enrich-with-web-kupujemprodajem enrich-with-llm sql-overview clean
+.PHONY: init start parse parse-halooglasi parse-kupujemprodajem parse-telegram enrich recheck recheck-halooglasi recheck-kupujemprodajem enrich-with-web enrich-with-web-halooglasi enrich-with-web-kupujemprodajem enrich-with-llm sql-overview clean
 
 MAKEFLAGS += -j
 
@@ -18,6 +18,9 @@ init:
 	@mkdir -p data
 	@echo "Initializing database..."
 	@node -e "import('./parse/lib/db.js').then(() => console.log('DB ready: $(DB)'))"
+
+start:
+	@$(MAKE) recheck && $(MAKE) parse && $(MAKE) enrich-with-web && $(MAKE) enrich-with-llm
 
 parse: parse-halooglasi parse-kupujemprodajem parse-telegram
 

@@ -34,6 +34,12 @@ make enrich-with-llm
 make recheck && make parse && make enrich-with-web && make enrich-with-llm 
 ```
 
+or just
+
+```
+make start
+```
+
 ### Common options
 
 | Option         | Default | Description                                        |
@@ -62,6 +68,7 @@ The database is stored at `data/associationhog.sqlite` (table `posts`).
 | Command | What it does | When to run |
 | ------- | ------------ | ----------- |
 | `make init` | Installs `node_modules` (via `npm install`) and creates/updates the SQLite DB and its schema. | Once after cloning the repo, and again after pulling changes that touch the schema. |
+| `make start` | Runs `recheck` → `parse` → `enrich-with-web` → `enrich-with-llm` sequentially. | Daily full refresh. |
 | `make parse` | Scrapes **both** resources and upserts new posts (runs `parse-halooglasi` and `parse-kupujemprodajem` in parallel). | To (re)collect listings and add new/updated ads. |
 | `make parse-halooglasi` | Scrapes halooglasi (psi + macke) only. | When you only want halooglasi data. |
 | `make parse-kupujemprodajem` | Scrapes kupujemprodajem listings (list-only: title/city/price/image). | When you want to collect kupujemprodajem ads. |

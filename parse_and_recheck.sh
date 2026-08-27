@@ -15,11 +15,8 @@ echo "=== parse_and_recheck started at $(date) ===" | tee -a "$LOG_FILE"
 
 cd "$SCRIPT_DIR"
 
-echo "--- Running parse ---" | tee -a "$LOG_FILE"
-make parse >> "$LOG_FILE" 2>&1
-
-echo "--- Running recheck ---" | tee -a "$LOG_FILE"
-make recheck >> "$LOG_FILE" 2>&1
+echo "--- Running start (recheck -> parse -> enrich-with-web -> enrich-with-llm) ---" | tee -a "$LOG_FILE"
+make start >> "$LOG_FILE" 2>&1
 
 echo "=== parse_and_recheck finished at $(date) ===" | tee -a "$LOG_FILE"
 
