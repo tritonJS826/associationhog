@@ -2,7 +2,7 @@ import { listTelegramMessagesForEnrichment, markTelegramEnrichment, countTelegra
 import { telegramPrompt } from '../lib/llmPrompts.js';
 
 function parseArgs(argv) {
-  const args = { channel: null, limit: Infinity, ollamaModel: 'gemma4-14threads:e2b', ollamaUrl: 'http://localhost:11434' };
+  const args = { channel: null, limit: Infinity, ollamaModel: 'gemma4:31b:cloud', ollamaUrl: 'http://localhost:11434' };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--channel' && argv[i + 1]) args.channel = argv[++i];

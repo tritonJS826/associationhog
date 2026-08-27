@@ -8,7 +8,7 @@ posts into a local SQLite database.
 - Node.js >= 22 (uses built-in `node:sqlite`)
 - puppeteer (used by the fetcher to bypass Cloudflare bot checks)
 - make (optional, for convenience scripts)
-- ollama with gemma4-14threads:e2b (served) 
+- ollama with gemma4:31b:cloud (served) 
 
 ## Installation and first parse
 

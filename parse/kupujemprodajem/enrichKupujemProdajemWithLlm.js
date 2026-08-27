@@ -2,7 +2,7 @@ import { listPostsForLlmEnrichment, markPostLlmEnrichment, countPosts, DB_PATH }
 import { siteAdPrompt } from '../lib/llmPrompts.js';
 
 function parseArgs(argv) {
-  const args = { source: null, limit: Infinity, ollamaModel: 'gemma4-14threads:e2b', ollamaUrl: 'http://localhost:11434' };
+  const args = { source: null, limit: Infinity, ollamaModel: 'gemma4:31b:cloud', ollamaUrl: 'http://localhost:11434' };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--source' && argv[i + 1]) args.source = argv[++i];
