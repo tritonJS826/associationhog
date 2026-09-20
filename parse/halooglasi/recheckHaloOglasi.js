@@ -1,6 +1,6 @@
 import { listOpenPosts, markClosed, DB_PATH } from '../lib/db.js';
 import { fetchHtml, closeBrowser, delay } from '../lib/fetch.js';
-import { classifyClose, toDateOnly, todayDate } from '../lib/close.js';
+import { classifyClose } from '../lib/close.js';
 
 function parseArgs(argv) {
   const args = { source: null, limit: Infinity, delayMs: 2000, logEvery: 25 };
@@ -28,22 +28,27 @@ function makeProgressLogger(source, total, logEvery) {
   };
 }
 
-function detectHaloOglasiClose(html) {
+function detectHaloOglasiClose(html, httpStatus) {
+  if (httpStatus !== 200) {
+    const closedMarkers = /(oglas (je )?(prodat|istekao|deaktiviran|uklonjen|neaktivan|arhiviran)|ad (has been|is) (sold|expired|deactivated|removed|archived))/i;
+    const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+    if (closedMarkers.test(text)) {
+      return { closed: true, closedBy: classifyClose(text) ?? 'platform' };
+    }
+    return { closed: true, closedBy: 'platform' };
+  }
+
   const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
   const reasonMatch = text.match(/StoppageReasonDescription["']?\s*[:=]\s*["']([^"']+)["']/i);
   if (reasonMatch) {
-    const reason = reasonMatch[1];
-    const closedBy = classifyClose(reason);
-    if (closedBy !== null) return { closed: true, closedBy, date: todayDate() };
+    return { closed: true, closedBy: classifyClose(reasonMatch[1]) ?? 'platform' };
   }
 
   const closedMarkers = /(oglas (je )?(prodat|istekao|deaktiviran|uklonjen|neaktivan|arhiviran)|ad (has been|is) (sold|expired|deactivated|removed|archived))/i;
-  if (!closedMarkers.test(text)) return { closed: false, closedBy: 'not_closed_yet', date: null };
+  if (!closedMarkers.test(text)) return { closed: false };
 
-  const closedBy = classifyClose(text);
-  if (closedBy === null) return { closed: true, closedBy: 'platform', date: null };
-  return { closed: true, closedBy, date: todayDate() };
+  return { closed: true, closedBy: classifyClose(text) ?? 'platform' };
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -64,11 +69,11 @@ try {
     try {
       console.log(`[recheck] checking ${post.id}: ${post.url}`);
       const res = await fetchHtml(post.url);
-      const detected = detectHaloOglasiClose(res.text);
+      const detected = detectHaloOglasiClose(res.text, res.status);
       if (detected.closed) {
-        markClosed(post.id, detected.closedBy, detected.date);
+        markClosed(post.id, detected.closedBy);
         closed++;
-        console.log(`[recheck] closed ${post.id}: closedBy=${detected.closedBy} date=${detected.date ?? '-'}`);
+        console.log(`[recheck] closed ${post.id}: closedBy=${detected.closedBy}`);
       }
     } catch (err) {
       console.warn(`  [recheck] skip ${post.id}: ${err.message}`);

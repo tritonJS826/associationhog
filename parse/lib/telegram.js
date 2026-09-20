@@ -66,6 +66,7 @@ export async function scrapeTelegramChannel({
 
       if (!messages || messages.length === 0) break;
 
+      let batchSaved = 0;
       for (const msg of messages) {
         if (!msg.message || msg.message.trim().length === 0) continue;
 
@@ -83,12 +84,12 @@ export async function scrapeTelegramChannel({
           date: new Date(msg.date * 1000).toISOString(),
         });
         if (dbResult.duplicate) duplicates++;
-        else saved++;
+        else { saved++; batchSaved++; }
       }
 
       console.log(`[telegram] batch: ${messages.length} msgs, saved ${saved}, dup ${duplicates}`);
 
-      if (saved >= maxMessages || messages.length < 100) break;
+      if (batchSaved === 0 || saved >= maxMessages || messages.length < 100) break;
 
       params.offsetId = messages[messages.length - 1].id;
     }

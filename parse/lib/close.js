@@ -9,6 +9,8 @@ const AUTHOR_REASONS = [
   /user deactiv/i,
   /oglašivač/i,
   /korisnik/i,
+  /parkira/i,
+  /parked/i,
 ];
 
 const MARKETPLACE_REASONS = [

@@ -26,7 +26,7 @@ db.exec(`
     images                    TEXT,
     raw                       TEXT,
     closed_by                 TEXT NOT NULL DEFAULT 'not_closed_yet',
-    date_closed               TEXT,
+    monitoring_date_closed      TEXT,
     details_fetched           INTEGER NOT NULL DEFAULT 0,
     age                       TEXT,
     breed                     TEXT,
@@ -60,8 +60,8 @@ const columns = db.prepare("PRAGMA table_info(posts)").all().map((c) => c.name);
 if (!columns.includes('closed_by')) {
   db.exec("ALTER TABLE posts ADD COLUMN closed_by TEXT NOT NULL DEFAULT 'not_closed_yet'");
 }
-if (!columns.includes('date_closed')) {
-  db.exec('ALTER TABLE posts ADD COLUMN date_closed TEXT');
+if (!columns.includes('monitoring_date_closed')) {
+  db.exec('ALTER TABLE posts ADD COLUMN monitoring_date_closed TEXT');
 }
 if (!columns.includes('details_fetched')) {
   db.exec('ALTER TABLE posts ADD COLUMN details_fetched INTEGER NOT NULL DEFAULT 0');
@@ -79,8 +79,8 @@ if (oldColumns.includes('is_closed_by_ad_maker')) {
   db.exec(`
     UPDATE posts
       SET closed_by = CASE WHEN is_closed_by_ad_maker = 1 THEN 'author' ELSE 'not_closed_yet' END,
-          date_closed = date_closed_by_ad_maker
-      WHERE closed_by = 'not_closed_yet' AND date_closed IS NULL;
+          monitoring_date_closed = date_closed_by_ad_maker
+      WHERE closed_by = 'not_closed_yet' AND monitoring_date_closed IS NULL;
     ALTER TABLE posts DROP COLUMN is_closed_by_ad_maker;
   `);
 }
@@ -116,7 +116,7 @@ if (!tgColumns.includes('images')) {
 }
 
 const INSERT_POST = db.prepare(`
-  INSERT INTO posts (id, source, url, title, description, city, price, images, raw, closed_by, date_closed, first_seen, last_seen)
+  INSERT INTO posts (id, source, url, title, description, city, price, images, raw, closed_by, monitoring_date_closed, first_seen, last_seen)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(id) DO UPDATE SET
     url = excluded.url,
@@ -127,7 +127,7 @@ const INSERT_POST = db.prepare(`
     images = excluded.images,
     raw = excluded.raw,
     closed_by = excluded.closed_by,
-    date_closed = excluded.date_closed,
+    monitoring_date_closed = excluded.monitoring_date_closed,
     last_seen = excluded.last_seen
 `);
 
@@ -137,7 +137,7 @@ const FIND_BY_ID = db.prepare(`
 
 const MARK_CLOSED = db.prepare(`
   UPDATE posts
-  SET closed_by = ?, date_closed = ?, last_seen = ?
+  SET closed_by = ?, monitoring_date_closed = ?, last_seen = ?
   WHERE id = ?
 `);
 
@@ -158,7 +158,7 @@ export function upsertPost(post) {
     post.images ?? '[]',
     post.raw ?? null,
     closedBy,
-    post.date_closed ?? null,
+    post.monitoring_date_closed ?? null,
     post.first_seen ?? now,
     now
   );
@@ -167,9 +167,9 @@ export function upsertPost(post) {
   return { inserted: true, duplicate: false, id: post.id };
 }
 
-export function markClosed(id, closedBy, dateClosed = null) {
+export function markClosed(id, closedBy) {
   const now = new Date().toISOString();
-  MARK_CLOSED.run(closedBy ?? 'not_closed_yet', dateClosed ?? null, now, id);
+  MARK_CLOSED.run(closedBy ?? 'not_closed_yet', now, now, id);
 }
 
 export function enrichPost(id, { title, description, price, images } = {}) {
@@ -201,9 +201,9 @@ export function enrichPost(id, { title, description, price, images } = {}) {
 
 export function listOpenPosts(source = null) {
   if (source) {
-    return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND source = ?").all(source);
+    return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND monitoring_date_closed IS NULL AND source = ?").all(source);
   }
-  return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet'").all();
+  return db.prepare("SELECT id, source, url FROM posts WHERE closed_by = 'not_closed_yet' AND monitoring_date_closed IS NULL").all();
 }
 
 export function listPostsForEnrichment(source = null) {

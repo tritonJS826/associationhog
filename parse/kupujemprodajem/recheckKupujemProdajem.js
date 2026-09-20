@@ -1,5 +1,5 @@
 import { listOpenPosts, markClosed, DB_PATH } from '../lib/db.js';
-import { classifyClose, toDateOnly, todayDate } from '../lib/close.js';
+import { classifyClose } from '../lib/close.js';
 
 function parseArgs(argv) {
   const args = { source: null, limit: Infinity, delayMs: 2000, logEvery: 25 };
@@ -65,24 +65,32 @@ try {
 
       const status = await page.evaluate((id) => {
         const nextData = window.__NEXT_DATA__;
+        if (!nextData) return { hasNextData: false };
         const byId = nextData?.props?.initialReduxState?.ad?.byId ?? {};
         const d = byId[id];
         if (d) {
           return {
+            hasNextData: true,
+            adFound: true,
             isAdDeleted: d.isAdDeleted === true,
             status: typeof d.status === 'string' ? d.status : null,
             adValidUntil: d.adValidUntil ?? null,
           };
         }
-        return null;
+        return { hasNextData: true, adFound: false };
       }, adId);
 
-      if (status && (status.isAdDeleted || (status.status && status.status !== 'normal' && status.status !== 'active'))) {
-        const closedBy = status.isAdDeleted ? 'author' : (classifyClose(status.status) ?? 'platform');
-        const date = closedBy === 'author' ? (toDateOnly(status.adValidUntil) ?? todayDate()) : null;
-        markClosed(post.id, closedBy, date);
-        closed++;
-        console.log(`[recheck] closed ${post.id}: closedBy=${closedBy} date=${date ?? '-'}`);
+      if (status) {
+        if (status.adFound === false) {
+          markClosed(post.id, 'platform');
+          closed++;
+          console.log(`[recheck] closed ${post.id}: closedBy=platform`);
+        } else if (status.isAdDeleted || (status.status && status.status !== 'normal' && status.status !== 'active')) {
+          const closedBy = status.isAdDeleted ? 'author' : (classifyClose(status.status) ?? 'platform');
+          markClosed(post.id, closedBy);
+          closed++;
+          console.log(`[recheck] closed ${post.id}: closedBy=${closedBy}`);
+        }
       }
     } catch (err) {
       console.warn(`  [recheck] skip ${post.id}: ${err.message}`);

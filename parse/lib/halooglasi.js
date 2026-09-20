@@ -99,7 +99,7 @@ function normalizeAd(ad, source) {
     images: JSON.stringify(parsed.images),
     raw: JSON.stringify(ad),
     closed_by: closedBy,
-    date_closed: closedBy !== 'not_closed_yet' ? (toDateOnly(ad.ValidTo) ?? null) : null,
+    monitoring_date_closed: closedBy !== 'not_closed_yet' ? (toDateOnly(ad.ValidTo) ?? null) : null,
   };
 }
 
@@ -132,12 +132,17 @@ export async function scrapeHaloOglasi({
     }
 
     const ads = pageData.Ads ?? [];
+    let pageSaved = 0;
     for (const ad of ads) {
       const result = upsertPost(normalizeAd(ad, source));
       if (result.duplicate) duplicates++;
-      else saved++;
+      else { saved++; pageSaved++; }
     }
-    console.log(`[halooglasi] page ${page}/${pages}: ${ads.length} ads`);
+    console.log(`[halooglasi] page ${page}/${pages}: ${ads.length} ads (new: ${pageSaved})`);
+    if (pageSaved === 0 && page > 1) {
+      console.log(`[halooglasi] no new ads on page ${page}, stopping`);
+      break;
+    }
   }
 
   console.log(`[halooglasi] done. inserted/updated: ${saved}, duplicates skipped: ${duplicates}`);

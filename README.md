@@ -96,9 +96,10 @@ Each post has a `closed_by` column with one of three values:
 - `author` — the ad maker closed it (e.g. sold / deactivated the ad).
 - `platform` — the marketplace closed it automatically (e.g. expired).
 
-`date_closed` records when it was closed (`NULL` while `not_closed_yet`). Scraping
-only sees listings, so a closed ad simply disappears from results; run
-`make recheck` to visit each open post's page and set `closed_by` / `date_closed`.
+`monitoring_date_closed` records the date when our monitoring detected the closure
+(`NULL` while `not_closed_yet`). Scraping only sees listings, so a closed ad simply
+disappears from results; run `make recheck` to visit each open post's page and set
+`closed_by` / `monitoring_date_closed`.
 
 ## Deduplication
 

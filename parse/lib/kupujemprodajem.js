@@ -125,6 +125,7 @@ export async function scrapeKupujemProdajem({
         listAds = await loadList(pageUrl);
       }
 
+      let pageSaved = 0;
       for (const ad of listAds) {
         const post = {
           id: ad.id,
@@ -140,9 +141,13 @@ export async function scrapeKupujemProdajem({
 
         const result = upsertPost(post);
         if (result.duplicate) duplicates++;
-        else saved++;
+        else { saved++; pageSaved++; }
       }
-      console.log(`[kupujemprodajem] page ${pg}/${pages}: ${listAds.length} ads`);
+      console.log(`[kupujemprodajem] page ${pg}/${pages}: ${listAds.length} ads (new: ${pageSaved})`);
+      if (pageSaved === 0 && pg > 1) {
+        console.log(`[kupujemprodajem] no new ads on page ${pg}, stopping`);
+        break;
+      }
     }
 
     console.log(`[kupujemprodajem] done. inserted/updated: ${saved}, duplicates skipped: ${duplicates}`);
